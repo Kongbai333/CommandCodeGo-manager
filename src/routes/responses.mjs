@@ -1,4 +1,4 @@
-// 派生自 MAXeaglet/commandcode-proxy(MIT,基线 9bdfafc)的单文件 proxy.mjs —— Step 1.2 纯移动拆分,实现与原注释逐字保留。
+// 派生自 MAXeaglet/commandcode-proxy(MIT,基线 9bdfafc)的单文件 proxy.mjs —— 纯移动拆分,实现与原注释逐字保留。
 // 唯一适配:consecutiveTimeouts → timeoutStats.consecutive(见 src/protocol/upstream.mjs)。
 import { randomUUID } from 'crypto';
 import { resolveUpstreamKey, authErrorMessage } from '../auth.mjs';
@@ -459,7 +459,7 @@ async function handleResponses(req, res) {
   }
 
   const auth = await resolveUpstreamKey(req.headers);
-  req.ccpAuth = auth; // 请求上下文(Step 2.3 遥测读取 mode/clientKeyName/upstreamKeyId)
+  req.ccpAuth = auth; // 请求上下文(遥测读取 mode/clientKeyName/upstreamKeyId)
   if (!auth) {
     sendResponsesError(res, 401, 'authentication_error',
       'Missing API key. Send in Authorization: Bearer <key> or x-api-key header');

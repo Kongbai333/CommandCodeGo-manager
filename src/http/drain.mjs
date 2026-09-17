@@ -1,4 +1,4 @@
-// 派生自 MAXeaglet/commandcode-proxy(MIT,基线 9bdfafc)的单文件 proxy.mjs —— Step 1.2 纯移动拆分,实现与原注释逐字保留。
+// 派生自 MAXeaglet/commandcode-proxy(MIT,基线 9bdfafc)的单文件 proxy.mjs —— 纯移动拆分,实现与原注释逐字保留。
 import { CLIENT_DRAIN_TIMEOUT_MS } from '../limits.mjs';
 import { log } from '../log.mjs';
 // 下游背压：res.write() 返回 false 表示 socket 写缓冲已超 highWaterMark（消费者跟不上）。

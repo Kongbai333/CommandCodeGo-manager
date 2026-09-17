@@ -1,4 +1,4 @@
-// 鉴权接缝(Step 2.2,PLAN D5):四个 handler 的统一密钥解析入口。
+// 鉴权接缝:四个 handler 的统一密钥解析入口。
 // 优先级:① sk-ccp-* 客户端 key(哈希验证 → 绑定的上游 key)
 //        ② user_* 直通(参考项目的用法,受 allowDirectUpstreamKey 开关)
 //        ③ config.apiKey 兜底

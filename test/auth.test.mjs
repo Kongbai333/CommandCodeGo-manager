@@ -1,4 +1,4 @@
-// Step 2.2 鉴权接缝测试:在代理工作目录预置 ccp.db(模拟已创建的密钥),
+// 鉴权接缝测试:在代理工作目录预置 ccp.db(模拟已创建的密钥),
 // 走 HTTP 全链路验证 sk-ccp-* 路由、直通开关与 config 兜底。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

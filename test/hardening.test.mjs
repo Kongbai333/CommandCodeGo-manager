@@ -1,5 +1,5 @@
-// Step 5.1 边缘与安全加固测试:断连中止上游、在途上限 503、413 排空、
-// 日志与遥测无明文密钥(upstream_keys 表明文存储是已文档化的例外,PLAN D5)。
+// 边缘与安全加固测试:断连中止上游、在途上限 503、413 排空、
+// 日志与遥测无明文密钥(upstream_keys 表明文存储是已文档化的例外)。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { setTimeout as sleep } from 'node:timers/promises';

@@ -1,4 +1,4 @@
-// Step 2.1 存储层测试:临时目录建库 → CRUD → 原始 DatabaseSync 复核持久化。
+// 存储层测试:临时目录建库 → CRUD → 原始 DatabaseSync 复核持久化。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, existsSync } from 'node:fs';

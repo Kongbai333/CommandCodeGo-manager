@@ -1,5 +1,5 @@
-// 请求遥测(Step 2.3):in-memory pub/sub(Admin SSE 实时日志消费)+ 异步落库
-// (requests 表 + usage_daily 聚合)。纪律(PLAN 2.3):
+// 请求遥测:in-memory pub/sub(Admin SSE 实时日志消费)+ 异步落库
+// (requests 表 + usage_daily 聚合)。纪律:
 //   - 记录全程 try/catch,遥测失败绝不影响代理;
 //   - 不落消息正文;不落任何明文 key(仅 key 名称/掩码/内部 id)。
 import { insertRequest } from './store/requests.mjs';
@@ -48,7 +48,7 @@ export function recordRequest(rec) {
  *   t.model / t.stream           —— 请求解析后直接赋值
  *   t.provider()                 —— 可选,close 时调用,返回 { usage, finishReason }
  *                                   (闭包读取各分支局部变量的终值,免多处出口插点)
- * 鉴权上下文从 req.ccpAuth 读取(Step 2.2)。
+ * 鉴权上下文从 req.ccpAuth 读取。
  * 返回的 t 不参与控制流,未赋值的字段按缺省记录。
  */
 export function instrumentRequest(req, res, endpoint) {

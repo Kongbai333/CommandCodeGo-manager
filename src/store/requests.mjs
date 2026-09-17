@@ -1,4 +1,4 @@
-// 请求日志:插入 + 分页过滤查询。不落消息正文(PLAN D5:隐私)。
+// 请求日志:插入 + 分页过滤查询。不落消息正文(隐私)。
 import { getDb } from './db.mjs';
 
 export async function insertRequest(rec) {

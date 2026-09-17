@@ -1,4 +1,4 @@
-// Step 2.3 遥测测试:三个端点(流式/非流式/错误)的请求都落库,
+// 遥测测试:三个端点(流式/非流式/错误)的请求都落库,
 // usage_daily 聚合正确;记录不含消息正文。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

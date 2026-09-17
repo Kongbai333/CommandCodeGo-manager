@@ -1,4 +1,4 @@
-// 派生自 MAXeaglet/commandcode-proxy(MIT,基线 9bdfafc)的单文件 proxy.mjs —— Step 1.2 纯移动拆分,实现与原注释逐字保留。
+// 派生自 MAXeaglet/commandcode-proxy(MIT,基线 9bdfafc)的单文件 proxy.mjs —— 纯移动拆分,实现与原注释逐字保留。
 // 从原「初始化预请求」段拆出:该 Map 同时被 session 清理(过期时连带清指纹状态)与
 // ensureInitialized 读写,独立成模块以避免 session→init→upstream→session 的循环依赖。
 import { generateFingerprint } from './fingerprint.mjs';

@@ -1,4 +1,4 @@
-// 特征化测试(Step 1.4,PLAN):把 vendored 实现的 wire 行为固化为契约,
+// 特征化测试:把 vendored 实现的 wire 行为固化为契约,
 // 防止后续接缝改造(鉴权/遥测)意外改变协议形态。
 // 分两部分:
 //  A) buildCcRequest 单元直测 —— src/protocol/envelope.mjs 可安全 import

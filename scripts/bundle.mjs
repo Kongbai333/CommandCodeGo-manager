@@ -1,4 +1,4 @@
-// npm 分发打包(Step 4.2):esbuild 把 server.mjs + src/ 打成单文件
+// npm 分发打包:esbuild 把 server.mjs + src/ 打成单文件
 // dist/commandcodego-manager.mjs。静态资源(public/)不内联,分发时与之同目录放置。
 // 运行:node dist/commandcodego-manager.mjs(data/ 与 public/ 自动在脚本同级查找)。
 import { build } from 'esbuild';

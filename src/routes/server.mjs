@@ -1,4 +1,4 @@
-// 派生自 MAXeaglet/commandcode-proxy(MIT,基线 9bdfafc)的单文件 proxy.mjs —— Step 1.2 纯移动拆分,实现与原注释逐字保留。
+// 派生自 MAXeaglet/commandcode-proxy(MIT,基线 9bdfafc)的单文件 proxy.mjs —— 纯移动拆分,实现与原注释逐字保留。
 import http from "http";
 import { CFG } from "../config.mjs";
 import { sendJSON } from "../http/respond.mjs";
@@ -23,7 +23,7 @@ function handleHealth(req, res) {
 
 const server = http.createServer(async (req, res) => {
   // CORS:/v1 与静态资源保持参考实现的宽松 CORS(任意客户端可用);
-  // /admin/* 同源管理界面,不放宽(见 PLAN D5)
+  // /admin/* 同源管理界面,不放宽
   const reqPath = (req.url || '/').split('?')[0];
   const isAdminPath = reqPath.startsWith('/admin');
   if (!isAdminPath) {

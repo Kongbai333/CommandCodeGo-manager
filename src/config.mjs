@@ -2,7 +2,7 @@
 // 派生自 MAXeaglet/commandcode-proxy(MIT,基线 9bdfafc)的 loadConfig ——
 // 环境变量覆写与键名逐字保留;差异:①配置文件从「脚本同目录」改为「数据目录
 // {CCP_DATA_DIR}/config.json」,首启自动落一份默认配置;②默认 host 收紧为
-// 127.0.0.1(参考是 0.0.0.0;本项目在 DB 里存密钥,见 PLAN D5);③新增三个
+// 127.0.0.1(参考是 0.0.0.0;本项目在 DB 里存密钥);③新增三个
 // 本项目键(adminTokenHash / allowDirectUpstreamKey / logRetentionDays)。
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { resolve, dirname, join } from 'path';
@@ -38,8 +38,8 @@ export function defaults() {
     emptySystemPlaceholder: true, // 无 system prompt 时发空格占位，阻止 CC 上游注入 ~7.5K token 默认提示词（issue #17）
     // ── 本项目新增键(参考实现没有) ──
     adminTokenHash: '',           // [已废弃 H1]管理界面已取消 token;键仅为兼容旧配置文件保留,不再使用
-    allowDirectUpstreamKey: true, // 是否放行 user_* 上游密钥直通(参考项目的用法),关闭后只认 sk-ccp-*(Step 2.2)
-    logRetentionDays: 30,         // 请求日志保留天数,定时清理(Step 2.1)
+    allowDirectUpstreamKey: true, // 是否放行 user_* 上游密钥直通(参考项目的用法),关闭后只认 sk-ccp-*
+    logRetentionDays: 30,         // 请求日志保留天数,定时清理
   };
 }
 

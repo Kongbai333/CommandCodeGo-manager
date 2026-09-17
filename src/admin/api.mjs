@@ -1,4 +1,4 @@
-// Admin REST API(Step 2.4,PLAN):挂 /admin/api/*,供 Web 管理界面调用。
+// Admin REST API:挂 /admin/api/*,供 Web 管理界面调用。
 // 鉴权:X-Admin-Token 头(sha256 与 config.adminTokenHash 比对);
 // SSE 用一次性 60s 短票据(EventSource 无法带自定义头)。登录失败 5 次锁 60s。
 // 首启无 token 时自动生成,明文只打印一次到控制台,库里只存哈希。

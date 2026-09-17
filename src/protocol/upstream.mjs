@@ -1,4 +1,4 @@
-// 派生自 MAXeaglet/commandcode-proxy(MIT,基线 9bdfafc)的单文件 proxy.mjs —— Step 1.2 纯移动拆分,实现与原注释逐字保留。
+// 派生自 MAXeaglet/commandcode-proxy(MIT,基线 9bdfafc)的单文件 proxy.mjs —— 纯移动拆分,实现与原注释逐字保留。
 // 唯一适配:原模块级 let consecutiveTimeouts 被三个路由模块读写,改为导出可变对象 timeoutStats(语义不变)。
 import crypto from 'crypto';
 import { CFG } from '../config.mjs';
@@ -16,7 +16,7 @@ const CC_VERSION_REFRESH_MS = 24 * 60 * 60 * 1000; // 24h — 检查一次是否
 // ── 协议漂移检测（只告警，不改版本号） ─────────────
 // 上游 CLI 更新可能带来协议变化。这里只负责提醒「该重新读包对齐了」，
 // 绝不会把 x-command-code-version 改成一个我们并未实现的版本。
-// 漂移状态(供 Web 界面展示,Step 2.4):只记录最近一次检查结果,不改变检测行为。
+// 漂移状态(供 Web 界面展示):只记录最近一次检查结果,不改变检测行为。
 export const driftStatus = { lastCheckedAt: null, latestVersion: null, protocolVersion: CC_PROTOCOL_VERSION, changed: false, lastError: null };
 
 async function checkProtocolDrift() {

@@ -1,4 +1,4 @@
-// 静态托管(Step 2.5):服务 public/(Vite 构建产物),带 MIME 与缓存策略。
+// 静态托管:服务 public/(Vite 构建产物),带 MIME 与缓存策略。
 // SPA fallback:非 /v1、非 /admin/api 的未知路径回落到 index.html(前端路由)。
 import { createReadStream, statSync } from 'node:fs';
 import { join, extname, normalize } from 'node:path';
