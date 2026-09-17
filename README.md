@@ -12,6 +12,8 @@ Command Code 订阅反向代理:把 [Command Code](https://commandcode.ai)(含 $
 > ⚠️ **免责声明**:本项目为非官方逆向工程产物,与 Command Code / Langbase 无关联。使用逆向协议可能违反
 > Command Code 服务条款,账号风险由使用者自行承担,仅供学习与研究用途。
 
+![总览仪表盘](docs/screenshots/dashboard.png)
+
 ## 特性
 
 - OpenAI Chat Completions + Responses + Anthropic Messages 三端点,流式(SSE)与非流式
@@ -22,6 +24,16 @@ Command Code 订阅反向代理:把 [Command Code](https://commandcode.ai)(含 $
 - Web 管理界面:admin token 鉴权、实时请求日志(SSE)、用量聚合、密钥管理、协议漂移告警
 - SQLite 持久化(内置 `node:sqlite`,零原生依赖):请求日志 30 天可配,用量按天×key×模型聚合
 - 零运行时依赖(Node ≥ 22.5);桌面应用与 esbuild 单文件分发
+
+## 管理界面一览
+
+| 请求日志(实时 SSE 推送,按端点 / 状态 / 密钥过滤) | 用量统计(按天 / 模型 / 密钥) |
+|:---:|:---:|
+| <img src="docs/screenshots/logs.png" width="430" alt="请求日志"> | <img src="docs/screenshots/usage.png" width="430" alt="用量统计"> |
+
+| 模型列表(上游动态拉取,内置列表兜底) | 设置(端口、协议开关、日志留存) |
+|:---:|:---:|
+| <img src="docs/screenshots/models.png" width="430" alt="模型列表"> | <img src="docs/screenshots/settings.png" width="430" alt="设置"> |
 
 ## 快速开始
 
@@ -88,7 +100,7 @@ node dist/commandcodego-manager.mjs   # data/ 与 public/ 取脚本同级目录
 ```bash
 node server.mjs            # 后端 :3050
 cd web && npm run dev       # 前端 :5173,/admin/api 与 /v1 代理到 3050
-npm test                   # 81 个测试(mock 上游,无需真实 key)
+npm test                   # 92 个测试(mock 上游,无需真实 key)
 ```
 
 ## 接入 harness
@@ -105,6 +117,9 @@ npm test                   # 81 个测试(mock 上游,无需真实 key)
 **额度耗尽自动轮转**:客户端密钥优先使用绑定的上游密钥;当上游明确返回「额度用尽」(402)时,
 自动切换到其他启用中的上游密钥并当场重试,被耗尽的密钥标记为「额度耗尽」(月度额度重置后可手动
 重新启用)。瞬时限速(429)不触发轮转,每枚密钥保持独立设备指纹与会话。
+
+![密钥管理](docs/screenshots/keys.png)
+*密钥管理:上游账户一键导入、客户端密钥显式绑定;额度耗尽的账户自动标记,重置后可手动重新启用*
 
 管理界面无需登录(仅监听 127.0.0.1,服务端拒绝跨站修改请求)。
 拿到上游密钥后,创建客户端密钥 `sk-ccp-*` 给 harness 使用(或直接使用 `user_*` 直通模式)。
