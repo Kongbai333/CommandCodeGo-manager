@@ -42,8 +42,13 @@ Command Code 订阅反向代理:把 [Command Code](https://commandcode.ai)(含 $
   `%APPDATA%\CommandCodeGo Manager\admin-token.txt`(win),用它在窗口里登录。
 - 关闭窗口后服务在**后台继续运行**(托盘图标常驻,默认 `http://127.0.0.1:3050`);
   从托盘菜单「退出」才真正结束。端口被占用时自动向后尝试。
-- 桌面版未做代码签名:macOS 首次打开需右键→打开(或系统设置里允许);Windows SmartScreen
-  可能提示「仍要运行」。
+- 桌面版未做代码签名:macOS 从网络下载的安装包**首次打开会被 Gatekeeper 误报「已损坏」**
+  (未签名应用 + 浏览器下载的隔离标记所致,文件本身完好;右键→打开对此无效)。
+  应用拖入「应用程序」后在终端执行一次:
+  ```bash
+  xattr -cr "/Applications/CommandCodeGo Manager.app"
+  ```
+  再正常打开即可。Windows SmartScreen 可能提示「仍要运行」。
 
 本地自行构建桌面版:
 

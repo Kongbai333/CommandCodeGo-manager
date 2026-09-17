@@ -11,3 +11,7 @@ CommandCodeGo Manager 桌面版
 5. 界面右上角可切换亮色/暗色主题(默认亮色,自动记忆)。
 6. 免责声明:非官方逆向工程产物,使用可能违反 Command Code 服务条款,
    账号风险自担,仅供学习研究。
+7. macOS 提示「已损坏」:应用未签名,浏览器下载自带隔离标记所致,文件完好。
+   拖入「应用程序」后终端执行一次:
+   xattr -cr "/Applications/CommandCodeGo Manager.app"
+   然后再打开即可。
