@@ -1,4 +1,4 @@
-CommandCode Proxy 桌面版
+CommandCodeGo Manager 桌面版
 ========================
 
 1. 打开即用:无需任何登录或密钥,直接进入管理界面。

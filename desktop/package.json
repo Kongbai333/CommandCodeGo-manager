@@ -1,6 +1,6 @@
 {
-  "name": "commandcode-proxy-desktop",
-  "productName": "CommandCode Proxy",
+  "name": "commandcodego-manager-desktop",
+  "productName": "CommandCodeGo Manager",
   "version": "0.1.0",
   "description": "Command Code 订阅反代桌面版(服务 + 管理界面)",
   "private": true,
@@ -17,8 +17,8 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "ai.commandcode.proxy.desktop",
-    "productName": "CommandCode Proxy",
+    "appId": "ai.commandcodego.manager.desktop",
+    "productName": "CommandCodeGo Manager",
     "asar": true,
     "directories": {
       "output": "../release",
@@ -28,7 +28,7 @@
       "main.cjs"
     ],
     "extraResources": [
-      { "from": "../dist/commandcode-proxy.mjs", "to": "commandcode-proxy.mjs" },
+      { "from": "../dist/commandcodego-manager.mjs", "to": "commandcodego-manager.mjs" },
       { "from": "../public", "to": "public" },
       { "from": "build/icon.png", "to": "icon.png" },
       { "from": "build/README-桌面版说明.txt", "to": "使用说明.txt" }
@@ -47,7 +47,7 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "shortcutName": "CommandCode Proxy"
+      "shortcutName": "CommandCodeGo Manager"
     },
     "portable": {
       "artifactName": "${productName}-Portable-${version}-${arch}.${ext}"

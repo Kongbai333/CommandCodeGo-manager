@@ -1,4 +1,4 @@
-# commandcode-proxy 开发计划
+# CommandCodeGo-manager 开发计划
 
 > **执行状态(2026-09-17,用户第三轮反馈 H1~H5)**:① **取消 Admin Token**:管理界面免登录
 > (API 仅回环监听 + 跨站 Origin 修改类请求 403 防护;登录页/轮换卡/ticket/SSE 票据/限速全链路移除,

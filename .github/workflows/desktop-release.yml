@@ -33,7 +33,7 @@ jobs:
           npm --prefix web ci || npm --prefix web install
           npm run build:web
 
-      # 2) 服务端单文件 bundle(产物 dist/commandcode-proxy.mjs)
+      # 2) 服务端单文件 bundle(产物 dist/commandcodego-manager.mjs)
       - name: Bundle server
         run: |
           npm ci || npm install

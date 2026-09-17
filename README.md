@@ -1,4 +1,4 @@
-# commandcode-proxy
+# CommandCodeGo-manager
 
 Command Code 订阅反向代理:把 [Command Code](https://commandcode.ai)(含 $1/月的 Go 套餐)的订阅额度反代为
 **OpenAI 兼容**(`/v1/chat/completions`、`/v1/responses`)与 **Anthropic 兼容**(`/v1/messages`)端点,
@@ -31,15 +31,15 @@ Command Code 订阅反向代理:把 [Command Code](https://commandcode.ai)(含 $
 
 | 平台 | 文件 | 说明 |
 |---|---|---|
-| macOS Apple Silicon | `CommandCode Proxy-<v>-arm64.dmg` | M 系列芯片 |
-| macOS Intel | `CommandCode Proxy-<v>.dmg` | — |
-| Windows x64 | `CommandCode Proxy-Setup-<v>-x64.exe` | 安装版(NSIS) |
-| Windows x64 | `CommandCode Proxy-Portable-<v>-x64.exe` | 免安装便携版 |
-| Windows 通用 | `CommandCode Proxy-Setup-<v>.exe` | 双架构合并安装器 |
+| macOS Apple Silicon | `CommandCodeGo Manager-<v>-arm64.dmg` | M 系列芯片 |
+| macOS Intel | `CommandCodeGo Manager-<v>.dmg` | — |
+| Windows x64 | `CommandCodeGo Manager-Setup-<v>-x64.exe` | 安装版(NSIS) |
+| Windows x64 | `CommandCodeGo Manager-Portable-<v>-x64.exe` | 免安装便携版 |
+| Windows 通用 | `CommandCodeGo Manager-Setup-<v>.exe` | 双架构合并安装器 |
 
 - 首次启动自动生成管理密钥(admin token):弹窗提示,并保存到
-  `~/Library/Application Support/CommandCode Proxy/admin-token.txt`(mac)或
-  `%APPDATA%\CommandCode Proxy\admin-token.txt`(win),用它在窗口里登录。
+  `~/Library/Application Support/CommandCodeGo Manager/admin-token.txt`(mac)或
+  `%APPDATA%\CommandCodeGo Manager\admin-token.txt`(win),用它在窗口里登录。
 - 关闭窗口后服务在**后台继续运行**(托盘图标常驻,默认 `http://127.0.0.1:3050`);
   从托盘菜单「退出」才真正结束。端口被占用时自动向后尝试。
 - 桌面版未做代码签名:macOS 首次打开需右键→打开(或系统设置里允许);Windows SmartScreen
@@ -49,7 +49,7 @@ Command Code 订阅反向代理:把 [Command Code](https://commandcode.ai)(含 $
 
 ```bash
 npm --prefix web install && npm run build:web   # 1) Web UI → public/
-npm install && npm run bundle                    # 2) 服务端 → dist/commandcode-proxy.mjs
+npm install && npm run bundle                    # 2) 服务端 → dist/commandcodego-manager.mjs
 cd desktop && npm install
 npm run dist:mac   # macOS dmg(zip 同步产出,arm64 + x64)
 npm run dist:win   # Windows nsis + portable(x64 + arm64;CI 上原生构建更稳)
@@ -74,8 +74,8 @@ npm run build:web
 
 ```bash
 npm install                # 安装 esbuild(devDependency)
-npm run bundle             # 产出 dist/commandcode-proxy.mjs + dist/public/
-node dist/commandcode-proxy.mjs   # data/ 与 public/ 取脚本同级目录
+npm run bundle             # 产出 dist/commandcodego-manager.mjs + dist/public/
+node dist/commandcodego-manager.mjs   # data/ 与 public/ 取脚本同级目录
 ```
 
 ### 开发模式

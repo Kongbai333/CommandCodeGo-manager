@@ -1,4 +1,4 @@
-// CommandCode Proxy 桌面版主进程(Electron)。
+// CommandCodeGo Manager 桌面版主进程(Electron)。
 // 职责:单实例 → 端口扫描 → 以子进程(ELECTRON_RUN_AS_NODE)
 // 启动反代服务(esbuild 单文件 bundle)→ 等 /health → 打开管理界面窗口 + 托盘常驻。
 // 服务与界面代码与命令行版完全同一份产物,桌面壳只做进程管理与窗口。
@@ -10,13 +10,13 @@ const net = require('node:net');
 const path = require('node:path');
 
 const isSmoke = process.argv.includes('--smoke');
-const PRODUCT = 'CommandCode Proxy';
+const PRODUCT = 'CommandCodeGo Manager';
 
 // ── 路径 ────────────────────────────────────────────────────
 const dataDir = path.join(app.getPath('userData'), 'data');
 const serverBundle = app.isPackaged
-  ? path.join(process.resourcesPath, 'commandcode-proxy.mjs')
-  : path.join(__dirname, '..', 'dist', 'commandcode-proxy.mjs');
+  ? path.join(process.resourcesPath, 'commandcodego-manager.mjs')
+  : path.join(__dirname, '..', 'dist', 'commandcodego-manager.mjs');
 const iconPath = app.isPackaged
   ? path.join(process.resourcesPath, 'icon.png')
   : path.join(__dirname, 'build', 'icon.png');

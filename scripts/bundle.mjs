@@ -1,6 +1,6 @@
 // npm 分发打包(Step 4.2):esbuild 把 server.mjs + src/ 打成单文件
-// dist/commandcode-proxy.mjs。静态资源(public/)不内联,分发时与之同目录放置。
-// 运行:node dist/commandcode-proxy.mjs(data/ 与 public/ 自动在脚本同级查找)。
+// dist/commandcodego-manager.mjs。静态资源(public/)不内联,分发时与之同目录放置。
+// 运行:node dist/commandcodego-manager.mjs(data/ 与 public/ 自动在脚本同级查找)。
 import { build } from 'esbuild';
 import { readFileSync } from 'node:fs';
 import { cpSync, mkdirSync, rmSync } from 'node:fs';
@@ -19,7 +19,7 @@ const result = await build({
   format: 'esm',
   platform: 'node',
   target: 'node22',
-  outfile: join(ROOT, 'dist/commandcode-proxy.mjs'),
+  outfile: join(ROOT, 'dist/commandcodego-manager.mjs'),
   // 版本号在打包时内联(运行时优先读该 env;见 src/admin/api.mjs)
   define: { 'process.env.CCP_APP_VERSION': JSON.stringify(pkg.version) },
   legalComments: 'inline', // 保留各模块头部的 MIT 派生声明
@@ -35,4 +35,4 @@ try {
 } catch {
   console.log('(public/ 未构建,跳过复制;分发前先 npm run build:web)');
 }
-console.log(`完成:dist/commandcode-proxy.mjs(v${pkg.version})`);
+console.log(`完成:dist/commandcodego-manager.mjs(v${pkg.version})`);
