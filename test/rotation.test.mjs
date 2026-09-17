@@ -121,3 +121,41 @@ test('rotation:手动重新启用 A 后,绑定优先恢复', async () => {
   assert.equal(chatR.status, 200);
   assert.equal(mock.lastGenerate()?.headers['authorization'], `Bearer ${KEY_A}`);
 });
+
+test('rotation:两把同时 active 且都 402 → 单笔请求内全部标记,下一笔直接 401', async () => {
+  // 回归:轮转链最后一把(重试后仍 402)必须当笔标记耗尽;
+  // 旧行为是等下一笔请求才补标,期间它仍是 active,会被再选中打一次上游。
+  await fetch(proxy.base + '/admin/api/upstream-keys/2', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'active' }),
+  });
+  assert.equal(statusOf('账户A'), 'active');
+  assert.equal(statusOf('账户B'), 'active');
+  const mock3 = await startMockUpstream({
+    onRequest: (req, res) => {
+      const a = req.headers['authorization'];
+      if (a === `Bearer ${KEY_A}` || a === `Bearer ${KEY_B}`) {
+        res.writeHead(402, { 'Content-Type': 'application/json' });
+        res.end('{"error":{"message":"payment required"}}');
+        return false;
+      }
+    },
+  });
+  const proxy3 = await startProxy({ upstreamPort: mock3.port, cwd: workdir });
+  try {
+    const r = await proxy3.post('/v1/chat/completions',
+      { model: 'm', messages: [{ role: 'user', content: 'hi' }] },
+      { Authorization: `Bearer ${token}` });
+    assert.equal(r.status, 429, '全耗尽:402 → 429');
+    await sleep(200);
+    assert.equal(statusOf('账户A'), 'exhausted', 'A 当笔标记');
+    assert.equal(statusOf('账户B'), 'exhausted', 'B(轮转链最后一把)当笔标记,不等下一笔补标');
+    const r2 = await proxy3.post('/v1/chat/completions',
+      { model: 'm', messages: [{ role: 'user', content: 'hi' }] },
+      { Authorization: `Bearer ${token}` });
+    assert.equal(r2.status, 401, '下一笔:无可用上游 → 401,不再打上游');
+    assert.equal(mock3.generateCount(), 2, '两笔请求共打上游 2 次(第 1 笔 A→B,第 2 笔零次)');
+  } finally {
+    await proxy3.kill();
+    await mock3.close();
+  }
+});

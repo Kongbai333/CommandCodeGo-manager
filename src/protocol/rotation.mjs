@@ -17,12 +17,17 @@ export async function forwardWithRotation(auth, headers, ccBody, signal, promptC
   for (let attempt = 0; ; attempt++) {
     await ensureInitialized(current.apiKey, signal);
     const response = await forwardToCC(ccBody, current.apiKey, headers, signal, promptCacheKey);
-    if (response.status !== 402 || current.mode !== 'client' || attempt > 0) {
+    if (response.status !== 402 || current.mode !== 'client') {
       return { response, auth: current };
     }
-    // 额度耗尽:标记本密钥,尝试换下一把(仅客户端密钥模式;直通/config 不轮转)
-    log('warn', 'Upstream key exhausted (402), rotating', { upstreamKeyId: current.upstreamKeyId });
+    // 额度耗尽:标记本密钥(仅客户端密钥模式;直通/config 不轮转)。
+    // 标记必须先于所有返回路径 —— 轮转链最后一把(重试后仍 402)同样要标,
+    // 否则它仍是 active,下一笔请求还会选中它、对已耗尽密钥再打一次上游。
+    log('warn', 'Upstream key exhausted (402)', { upstreamKeyId: current.upstreamKeyId });
     await setUpstreamKeyStatus(current.upstreamKeyId, 'exhausted');
+    if (attempt > 0) {
+      return { response, auth: current }; // 已重试过一次:按原语义返回(402 → 429)
+    }
     const next = await resolveUpstreamKey(headers, { skipUpstreamId: current.upstreamKeyId });
     if (!next || next.error || next.upstreamKeyId === current.upstreamKeyId) {
       return { response, auth: current }; // 无可轮转密钥:按原语义返回(402 → 429)
