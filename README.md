@@ -1,5 +1,7 @@
 # CommandCodeGo-manager
 
+[![LinuxDo](https://img.shields.io/badge/LinuxDo-友链-0099FF?style=for-the-badge&logo=discourse&logoColor=white)](https://linux.do)
+
 Command Code 订阅反向代理:把 [Command Code](https://commandcode.ai)(含 $1/月的 Go 套餐)的订阅额度反代为
 **OpenAI 兼容**(`/v1/chat/completions`、`/v1/responses`)与 **Anthropic 兼容**(`/v1/messages`)端点,
 供任意 harness(Claude Code / OpenCode / ZCode / cURL / 任意 OpenAI·Anthropic SDK)使用;
