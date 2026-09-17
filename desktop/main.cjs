@@ -95,7 +95,8 @@ async function waitHealthy(port, timeoutMs = 20000) {
       const r = await fetch(`http://127.0.0.1:${port}/health`);
       if (r.ok) return true;
     } catch { /* 尚未就绪 */ }
-    await new Promise(r => setTimeout(r, 250));
+    // 回环地址上探活极廉价,高频轮询把「就绪→开窗」的空转从最长 250ms 压到 60ms
+    await new Promise(r => setTimeout(r, 60));
   }
   throw new Error('服务启动超时(/health 未就绪)');
 }
@@ -103,7 +104,22 @@ async function waitHealthy(port, timeoutMs = 20000) {
 // ── 窗口与托盘 ─────────────────────────────────────────────
 let win = null;
 let tray = null;
-function createWindow(port) {
+// 启动 splash:内联 data: URL,零网络零磁盘,窗口创建即显示。
+// 视觉与正式界面同底色(#f3f5f9 + teal 品牌色),服务就绪换页不跳变。
+const SPLASH_URL = 'data:text/html;charset=utf-8,' + encodeURIComponent(
+  '<!doctype html><meta charset="utf-8"><style>' +
+  'html{background:#f3f5f9;overflow:hidden}' +
+  '.wrap{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;font:500 13px -apple-system,"PingFang SC",sans-serif;color:#51607a}' +
+  '.logo{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#0d9488,#0284c7);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(13,148,136,.25)}' +
+  '.logo svg{width:26px;height:26px}' +
+  '.spin{width:22px;height:22px;border-radius:50%;border:2.5px solid #c9d3e2;border-top-color:#0d9488;animation:r .8s linear infinite}' +
+  '@keyframes r{to{transform:rotate(360deg)}}' +
+  '</style><div class="wrap">' +
+  '<div class="logo"><svg viewBox="0 0 32 32" fill="none"><path d="M8 12l5 4-5 4" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 21h8" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg></div>' +
+  '<div>CommandCodeGo Manager</div><div class="spin"></div><div>服务启动中…</div>' +
+  '</div>');
+
+function createWindow() {
   win = new BrowserWindow({
     width: 1280,
     height: 860,
@@ -119,11 +135,29 @@ function createWindow(port) {
       nodeIntegration: false,
     },
   });
-  win.loadURL(`http://127.0.0.1:${port}/`);
   // 关窗 = 隐藏到托盘,服务保持运行(托盘「退出」才真正结束)
   win.on('close', e => {
     if (!app.isQuitting) { e.preventDefault(); win.hide(); }
   });
+}
+
+/** 打开(或复用)窗口并载入管理界面;服务未就绪时先落 splash。
+ *  已载入正式页面的存活窗口只做 show/focus,不重复 loadURL(避免整页刷新)。 */
+let appLoaded = false;
+function showWindow(port) {
+  let fresh = false;
+  if (win && !win.isDestroyed()) {
+    if (!win.isVisible()) win.show();
+    win.focus();
+  } else {
+    createWindow();
+    fresh = true;
+    win.loadURL(SPLASH_URL); // 新建窗口先给 splash,等调用方决定何时载入正式页面
+  }
+  if (fresh || !appLoaded) {
+    appLoaded = true;
+    win.loadURL(`http://127.0.0.1:${port}/`);
+  }
 }
 
 function createTray(port) {
@@ -132,12 +166,12 @@ function createTray(port) {
   tray = new Tray(icon);
   tray.setToolTip(PRODUCT);
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: '打开管理界面', click: () => (win ? (win.show(), win.focus()) : createWindow(port)) },
+    { label: '打开管理界面', click: () => showWindow(port) },
     { label: `服务地址 http://127.0.0.1:${port}`, enabled: false },
     { type: 'separator' },
     { label: '退出', click: () => { app.isQuitting = true; app.quit(); } },
   ]));
-  tray.on('click', () => (win ? (win.isVisible() ? win.focus() : win.show()) : createWindow(port)));
+  tray.on('click', () => (win && !win.isDestroyed() ? (win.isVisible() ? win.focus() : win.show()) : showWindow(port)));
 }
 
 function setupMenu() {
@@ -171,7 +205,16 @@ app.on('quit', () => stopServer());
 app.on('second-instance', () => { if (win) { win.show(); win.focus(); } });
 
 // ── 启动流程 ───────────────────────────────────────────────
+// 窗口先行:whenReady 立即建窗显示内联 splash(不依赖服务),
+// 服务健康后无缝换载管理界面 —— 不再让用户等完整串行链
+// (服务启动 → 健康检查 → 建窗 → 加载页面)才见到窗口。
 async function bootstrap() {
+  if (!isSmoke) {
+    setupMenu();
+    createWindow();
+    win.loadURL(SPLASH_URL);
+  }
+
   const port = await pickPort();
   serverPort = port;
   startServer(port);
@@ -183,9 +226,9 @@ async function bootstrap() {
     return;
   }
 
-  setupMenu();
-  createWindow(port);
   createTray(port);
+  // 窗口可能已被用户关掉(隐藏)甚至销毁,loadURL 前判活
+  if (win && !win.isDestroyed()) { appLoaded = true; win.loadURL(`http://127.0.0.1:${port}/`); }
 }
 
 app.whenReady().then(() => {
