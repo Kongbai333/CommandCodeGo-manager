@@ -1,0 +1,103 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
+/* ── 设计 token(PLAN D3;F1 双主题)──────────────────────────
+   默认亮色(浅灰蓝底 + 白卡片 + teal 主色);html[data-theme='dark']
+   覆盖为暗色开发者工具风。Tailwind v4 的 --color-* 即 CSS 变量,
+   运行时按 data-theme 切换,index.html 的内联脚本在首帧前设置,
+   避免闪烁。 */
+@theme {
+  --color-bg: #f3f5f9;
+  --color-panel: #ffffff;
+  --color-panel2: #eaeef5;
+  --color-line: #e1e7f0;
+  --color-line2: #c9d3e2;
+  --color-txt: #1a2433;
+  --color-txt2: #51607a;
+  --color-txt3: #6b7686;        /* 亮色次要文字:白底对比 ≥4.5:1 */
+  --color-accent: #0d9488;        /* 亮色主色:深 teal(白底对比足够) */
+  --color-accent2: #0f766e;
+  --color-accent-fg: #ffffff;     /* 主色按钮上的文字 */
+  --color-accent-dim: rgba(13, 148, 136, 0.1);
+  --color-brand2: #0284c7;        /* 第二品牌色(天空蓝,与 teal 组成品牌渐变) */
+  --color-violet: #7c3aed;
+  --color-cyan2: #0891b2;
+  --color-rose: #e11d48;
+  --color-ok: #16a34a;
+  --color-warn: #d97706;
+  --color-err: #dc2626;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "PingFang SC", sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html[data-theme='dark'] {
+  --color-bg: #12141a;
+  --color-panel: #191c24;
+  --color-panel2: #21252f;
+  --color-line: #2b303c;
+  --color-line2: #3a4150;
+  --color-txt: #e7eaf0;
+  --color-txt2: #a3abbb;
+  --color-txt3: #7d8698;
+  --color-accent: #38d9c3;
+  --color-accent2: #22b8a3;
+  --color-accent-fg: #0f1115;
+  --color-accent-dim: rgba(56, 217, 195, 0.13);
+  --color-brand2: #38bdf8;
+  --color-violet: #a78bfa;
+  --color-cyan2: #22d3ee;
+  --color-rose: #fb7185;
+  --color-ok: #4ade80;
+  --color-warn: #fbbf24;
+  --color-err: #f87171;
+}
+
+html, body, #root { height: 100%; }
+html { color-scheme: light; }
+html[data-theme='dark'] { color-scheme: dark; }
+body {
+  background: linear-gradient(180deg, var(--color-bg) 0%, color-mix(in srgb, var(--color-bg) 88%, var(--color-brand2) 12%) 100%) fixed;
+  color: var(--color-txt);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* 滚动条随主题 */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-line2); border-radius: 6px; border: 2px solid var(--color-bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--color-txt3); }
+
+/* 数字与代码统一等宽 */
+.tnum { font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+
+/* 获焦强调 */
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+
+/* 骨架屏 shimmer */
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.skeleton {
+  background: linear-gradient(90deg, var(--color-panel2) 25%, var(--color-line) 50%, var(--color-panel2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite linear;
+  border-radius: 6px;
+}
+
+/* ── 反馈动画(F2/F4)──────────────────────────────────────── */
+@keyframes pop-in { from { opacity: 0; transform: scale(0.96) translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes slide-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.anim-pop { animation: pop-in 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+.anim-up { animation: slide-up 0.22s ease-out; }
+
+/* 卡片:层次阴影 + hover 浮起(大气感) */
+.card-shadow { box-shadow: 0 1px 2px rgba(23,32,48,.04), 0 4px 16px rgba(23,32,48,.06); transition: box-shadow .2s ease, transform .2s ease; }
+.card-shadow:hover { box-shadow: 0 2px 6px rgba(23,32,48,.06), 0 8px 24px rgba(23,32,48,.09); }
+html[data-theme='dark'] .card-shadow { box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+html[data-theme='dark'] .card-shadow:hover { box-shadow: 0 4px 20px rgba(0,0,0,.4); }
+
+/* 品牌渐变(logo/主按钮/激活导航) */
+.brand-gradient { background-image: linear-gradient(135deg, var(--color-accent), var(--color-brand2)); }
+.brand-text-gradient { background-image: linear-gradient(135deg, var(--color-accent), var(--color-brand2)); -webkit-background-clip: text; background-clip: text; color: transparent; }

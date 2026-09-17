@@ -1,0 +1,22 @@
+{
+  "name": "commandcode-proxy",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Command Code 订阅反向代理 —— OpenAI/Anthropic 兼容端点 + Web 管理界面",
+  "license": "MIT",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs",
+    "test": "node --test test/*.test.mjs",
+    "build:web": "npm --prefix web run build",
+    "bundle": "node scripts/bundle.mjs",
+    "build": "npm run build:web && node --check server.mjs"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.10"
+  }
+}

@@ -1,0 +1,288 @@
+// 实时请求日志(Phase 3.2):历史查询 + SSE 实时追加(ticket 一次性票据,断线 1.5s 自动重连)。
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { fetchClientKeys, fetchLogs, type ClientKey, type RequestRow } from '../api';
+import {
+  Badge, Button, Card, CardBody, CardHeader, EmptyState, Loading, Select,
+  Table, Td, Th, toast, fmtInt, fmtK, fmtMs, fmtTime,
+} from '../ui';
+
+const ENDPOINTS = ['/v1/chat/completions', '/v1/messages', '/v1/responses', '/v1/models'];
+const STATUS_OPTIONS = [
+  { value: '', label: '全部状态' },
+  { value: '2xx', label: '2xx 成功' },
+  { value: '4xx', label: '4xx 客户端错误' },
+  { value: '5xx', label: '5xx 服务端错误' },
+  { value: '200', label: '200' },
+  { value: '401', label: '401' },
+  { value: '429', label: '429' },
+  { value: '502', label: '502' },
+];
+const MAX_ROWS = 500;
+
+function statusKind(code: number | null): 'ok' | 'warn' | 'err' | 'default' {
+  if (code == null) return 'default';
+  if (code >= 500) return 'err';
+  if (code >= 400) return 'warn';
+  return 'ok';
+}
+
+// SSE 行无 id(后端 publish 的是 camelCase 记录),补一个会话内负数自增 id 兜底
+let sseSeq = 0;
+
+/** 归一化:SSE 事件(camelCase)与历史行(snake_case)统一成 RequestRow。 */
+function normalize(raw: Record<string, unknown>): RequestRow {
+  const g = <T,>(snake: string, camel: string, d: T): T => {
+    const v = raw[snake] ?? raw[camel];
+    return (v === undefined || v === null ? d : v) as T;
+  };
+  return {
+    id: g<number>('id', 'id', -(++sseSeq)),
+    ts: g<number>('ts', 'ts', Date.now()),
+    endpoint: g<string>('endpoint', 'endpoint', ''),
+    proxy_key: g<string | null>('proxy_key', 'proxyKey', null),
+    upstream_key_id: g<number | null>('upstream_key_id', 'upstreamKeyId', null),
+    model: g<string | null>('model', 'model', null),
+    status_code: g<number | null>('status_code', 'statusCode', null),
+    stream: g<number | boolean>('stream', 'stream', 0) ? 1 : 0,
+    duration_ms: g<number | null>('duration_ms', 'durationMs', null),
+    input_tokens: g<number>('input_tokens', 'inputTokens', 0),
+    output_tokens: g<number>('output_tokens', 'outputTokens', 0),
+    cached_tokens: g<number>('cached_tokens', 'cachedTokens', 0),
+    finish_reason: g<string | null>('finish_reason', 'finishReason', null),
+    error_type: g<string | null>('error_type', 'errorType', null),
+    client_disconnected: g<number | boolean>('client_disconnected', 'clientDisconnected', 0) ? 1 : 0,
+  };
+}
+
+// 详情展开行的键值对
+function KV({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex min-w-0 gap-2">
+      <span className="shrink-0 text-txt3">{label}</span>
+      <span className="tnum min-w-0 break-all text-txt">{value ?? '—'}</span>
+    </div>
+  );
+}
+
+export function Logs() {
+  // 过滤条件('' = 不过滤;2xx/4xx/5xx 为前端分组过滤,具体值走服务端)
+  const [endpoint, setEndpoint] = useState('');
+  const [status, setStatus] = useState('');
+  const [keyId, setKeyId] = useState('');
+  const [keys, setKeys] = useState<ClientKey[]>([]);
+  const [rows, setRows] = useState<RequestRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
+  const [live, setLive] = useState(true);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  const statusExact = ['200', '401', '429', '502'].includes(status) ? status : '';
+  const statusGroup = ['2xx', '4xx', '5xx'].includes(status) ? status : '';
+
+  // keyId 过滤:后端按 upstream_key_id 匹配,故取客户端 key 映射的上游 key id(去重)
+  const keyOptions = useMemo(() => {
+    const seen = new Set<number>();
+    const out: { id: number; label: string }[] = [];
+    for (const k of keys) {
+      if (k.upstream_key_id == null || seen.has(k.upstream_key_id)) continue;
+      seen.add(k.upstream_key_id);
+      out.push({ id: k.upstream_key_id, label: k.name });
+    }
+    return out;
+  }, [keys]);
+
+  const matchFilter = useCallback((r: RequestRow) =>
+    (!endpoint || r.endpoint === endpoint) &&
+    (!statusExact || r.status_code === Number(statusExact)) &&
+    (!keyId || r.upstream_key_id === Number(keyId))
+  , [endpoint, statusExact, keyId]);
+
+  // onmessage 闭包里读最新过滤条件
+  const matchRef = useRef(matchFilter);
+  useEffect(() => { matchRef.current = matchFilter; }, [matchFilter]);
+
+  // ── 历史加载(过滤条件变化时重新拉取) ──
+  const load = useCallback(async () => {
+    setLoading(true); setErr('');
+    try {
+      const qs = new URLSearchParams({ limit: '200' });
+      if (endpoint) qs.set('endpoint', endpoint);
+      if (statusExact) qs.set('status', statusExact);
+      if (keyId) qs.set('keyId', keyId);
+      const d = await fetchLogs(`?${qs.toString()}`);
+      setRows(d.rows); setTotal(d.total);
+    } catch (e) {
+      setErr((e as Error).message || '加载失败');
+      toast('err', '加载请求日志失败');
+    } finally {
+      setLoading(false);
+    }
+  }, [endpoint, statusExact, keyId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  // 客户端 key 下拉数据
+  useEffect(() => {
+    fetchClientKeys().then(d => setKeys(d.rows)).catch(() => { /* 下拉静默降级为空 */ });
+  }, []);
+
+  // ── SSE 实时追加 ──
+  const liveRef = useRef(true);
+  const disposedRef = useRef(false);
+  const esRef = useRef<EventSource | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const connect = useCallback(async () => {
+    if (disposedRef.current) return;
+    try {
+      // 管理界面已取消 token(H1):SSE 直接连接,断线 1.5s 自动重连
+      esRef.current?.close();
+      const es = new EventSource('/admin/api/logs/stream');
+      esRef.current = es;
+      es.onmessage = ev => {
+        if (!liveRef.current) return; // 暂停时仍接收但不处理,重开即恢复
+        try {
+          const row = normalize(JSON.parse(ev.data) as Record<string, unknown>);
+          if (!matchRef.current(row)) return;
+          setRows(prev => [row, ...prev].slice(0, MAX_ROWS));
+          setTotal(n => n + 1);
+        } catch { /* 忽略坏帧 */ }
+      };
+      es.onerror = () => {
+        es.close();
+        esRef.current = null;
+        if (disposedRef.current) return;
+        timerRef.current = setTimeout(() => { void connect(); }, 1500);
+      };
+    } catch {
+      if (disposedRef.current) return;
+      timerRef.current = setTimeout(() => { void connect(); }, 1500);
+    }
+  }, []);
+
+  useEffect(() => {
+    disposedRef.current = false;
+    void connect();
+    return () => {
+      disposedRef.current = true;
+      esRef.current?.close();
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [connect]);
+
+  const toggleLive = () => setLive(v => {
+    liveRef.current = !v;
+    return !v;
+  });
+
+  const clearFilters = () => { setEndpoint(''); setStatus(''); setKeyId(''); };
+
+  // 2xx/4xx/5xx 分组过滤在前端生效
+  const visible = statusGroup
+    ? rows.filter(r => {
+        const c = r.status_code;
+        if (c == null) return false;
+        return statusGroup === '5xx' ? c >= 500 : statusGroup === '4xx' ? c >= 400 && c < 500 : c >= 200 && c < 300;
+      })
+    : rows;
+
+  return (
+    <div className="space-y-5">
+      {/* ── 过滤栏 + 实时开关 ── */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="w-48">
+          <Select value={endpoint} onChange={e => setEndpoint(e.target.value)}>
+            <option value="">全部端点</option>
+            {ENDPOINTS.map(ep => <option key={ep} value={ep}>{ep}</option>)}
+          </Select>
+        </div>
+        <div className="w-44">
+          <Select value={status} onChange={e => setStatus(e.target.value)}>
+            {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </Select>
+        </div>
+        <div className="w-48">
+          <Select value={keyId} onChange={e => setKeyId(e.target.value)}>
+            <option value="">全部 Key</option>
+            {keyOptions.map(k => <option key={k.id} value={String(k.id)}>{k.label}</option>)}
+          </Select>
+        </div>
+        <Button size="md" onClick={clearFilters} disabled={!endpoint && !status && !keyId}>清空过滤</Button>
+        <div className="ml-auto flex items-center gap-2">
+          <Badge kind={live ? 'ok' : 'default'}>{live ? '● 实时' : '已暂停'}</Badge>
+          <Button size="sm" variant={live ? 'default' : 'primary'} onClick={toggleLive}>
+            {live ? '暂停实时' : '开启实时'}
+          </Button>
+        </div>
+      </div>
+
+      {/* ── 日志表 ── */}
+      <Card>
+        <CardHeader
+          title="请求日志"
+          extra={<span className="tnum text-xs text-txt3">共 {fmtInt(total)} 条{statusGroup ? '(分组过滤后见下)' : ''}</span>} />
+        {err && !loading ? (
+          <EmptyState title="日志加载失败" hint={`${err} —— 请确认代理服务可达后重试。`} />
+        ) : loading ? (
+          <Loading>加载请求日志…</Loading>
+        ) : visible.length === 0 ? (
+          <EmptyState title="暂无请求" hint="当前过滤条件下没有请求记录,实时请求会自动出现在这里。" />
+        ) : (
+          <Table>
+            <thead>
+              <tr>
+                <Th>时间</Th><Th>端点</Th><Th>Key</Th><Th>模型</Th><Th>状态</Th><Th>流式</Th>
+                <Th>耗时</Th><Th>tokens (in/out)</Th><Th>finish</Th><Th>错误</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map(r => (
+                <Fragment key={r.id}>
+                  <tr onClick={() => setExpandedId(prev => (prev === r.id ? null : r.id))}
+                    className={`cursor-pointer transition-colors hover:bg-panel2/60 ${expandedId === r.id ? 'bg-panel2/80' : ''}`}>
+                    <Td className="tnum whitespace-nowrap text-xs text-txt2">{fmtTime(r.ts)}</Td>
+                    <Td className="max-w-44 truncate font-mono text-xs">{r.endpoint || '—'}</Td>
+                    <Td className="max-w-32 truncate text-xs text-txt2">{r.proxy_key ?? '—'}</Td>
+                    <Td className="max-w-36 truncate text-xs">{r.model ?? '—'}</Td>
+                    <Td><Badge kind={statusKind(r.status_code)}>{r.status_code ?? '—'}</Badge></Td>
+                    <Td className="text-xs text-txt2">{r.stream ? '是' : '否'}</Td>
+                    <Td className="tnum text-xs">{fmtMs(r.duration_ms)}</Td>
+                    <Td className="tnum text-xs">{fmtK(r.input_tokens)} / {fmtK(r.output_tokens)}</Td>
+                    <Td className="max-w-24 truncate font-mono text-xs text-txt2">{r.finish_reason ?? '—'}</Td>
+                    <Td className="max-w-32 truncate text-xs">{r.error_type
+                      ? <span className="font-mono text-err">{r.error_type}</span> : <span className="text-txt3">—</span>}</Td>
+                  </tr>
+                  {expandedId === r.id && (
+                    <tr>
+                      <td colSpan={10} className="border-b border-line/50 bg-panel2/50 px-4 py-3">
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs md:grid-cols-3">
+                          <KV label="id" value={String(r.id)} />
+                          <KV label="完整时间" value={fmtTime(r.ts)} />
+                          <KV label="端点" value={r.endpoint || '—'} />
+                          <KV label="proxy_key" value={r.proxy_key ?? '—'} />
+                          <KV label="upstream_key_id" value={r.upstream_key_id != null ? String(r.upstream_key_id) : '—'} />
+                          <KV label="模型" value={r.model ?? '—'} />
+                          <KV label="状态码" value={r.status_code != null ? String(r.status_code) : '—'} />
+                          <KV label="流式" value={r.stream ? '是' : '否'} />
+                          <KV label="耗时" value={fmtMs(r.duration_ms)} />
+                          <KV label="input_tokens" value={fmtInt(r.input_tokens)} />
+                          <KV label="output_tokens" value={fmtInt(r.output_tokens)} />
+                          <KV label="cached_tokens" value={fmtInt(r.cached_tokens)} />
+                          <KV label="finish_reason" value={r.finish_reason ?? '—'} />
+                          <KV label="error_type" value={r.error_type
+                            ? <span className="text-err">{r.error_type}</span> : '—'} />
+                          <KV label="client_disconnected" value={r.client_disconnected ? '是' : '否'} />
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </Table>
+        )}
+      </Card>
+    </div>
+  );
+}

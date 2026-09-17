@@ -1,0 +1,12 @@
+{
+  "port": 3050,
+  "host": "127.0.0.1",
+  "apiBase": "https://api.commandcode.ai",
+  "projectSlug": "cc-proxy",
+  "apiKey": "",
+  "logFile": "",
+  "logLevel": "info",
+  "useProviderModels": true,
+  "modelRefreshIntervalMs": 300000,
+  "zdr": false
+}

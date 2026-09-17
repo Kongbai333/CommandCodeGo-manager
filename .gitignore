@@ -1,0 +1,9 @@
+node_modules/
+data/
+web/dist/
+public/
+dist/
+*.log
+.DS_Store
+desktop/node_modules/
+release/

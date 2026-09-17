@@ -1,0 +1,56 @@
+{
+  "name": "commandcode-proxy-desktop",
+  "productName": "CommandCode Proxy",
+  "version": "0.1.0",
+  "description": "Command Code 订阅反代桌面版(服务 + 管理界面)",
+  "private": true,
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "smoke": "electron . --smoke",
+    "dist:mac": "electron-builder --mac dmg zip --arm64 --x64",
+    "dist:win": "electron-builder --win nsis portable --x64 --arm64",
+    "icon": "node scripts/gen-icon.mjs"
+  },
+  "devDependencies": {
+    "electron": "^37.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "ai.commandcode.proxy.desktop",
+    "productName": "CommandCode Proxy",
+    "asar": true,
+    "directories": {
+      "output": "../release",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.cjs"
+    ],
+    "extraResources": [
+      { "from": "../dist/commandcode-proxy.mjs", "to": "commandcode-proxy.mjs" },
+      { "from": "../public", "to": "public" },
+      { "from": "build/icon.png", "to": "icon.png" },
+      { "from": "build/README-桌面版说明.txt", "to": "使用说明.txt" }
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [{ "target": "dmg", "arch": ["arm64", "x64"] }, { "target": "zip", "arch": ["arm64", "x64"] }],
+      "identity": null,
+      "darkModeSupport": true
+    },
+    "win": {
+      "target": ["nsis", "portable"]
+    },
+    "nsis": {
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "CommandCode Proxy"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}-${arch}.${ext}"
+    }
+  }
+}
