@@ -1,8 +1,11 @@
 // 组件基件库(Step 3.1):Button/Card/Table/Badge/Dialog/Input/Tabs/Toast/空态/骨架屏/EChart。
 // 全部自实现,零第三方 UI 依赖;设计 token 见 styles.css 的 @theme。
-import React, { useEffect, useRef, useState } from 'react';
-import * as echarts from 'echarts';
+// echarts 不在此处同步引入:见 echart.tsx(按需注册 + 异步 chunk)。
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { X, Sun, Moon } from 'lucide-react';
+
+/** 图表配置项(宽松类型:页面侧都是字面量对象,无需耦合 echarts 类型)。 */
+export type ChartOption = Record<string, unknown>;
 
 // ── 主题(F1):默认亮色,可切暗色;持久化 localStorage ──────
 export type Theme = 'light' | 'dark';
@@ -256,28 +259,26 @@ export function Loading({ children = '加载中…' }: { children?: React.ReactN
   );
 }
 
-// ── EChart 封装(自动 resize + dispose) ──────────────────
-export function EChart({ option, className = 'h-64' }: { option: echarts.EChartsCoreOption; className?: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const chart = useRef<echarts.ECharts | null>(null);
-  useEffect(() => {
-    if (!ref.current) return;
-    const c = echarts.init(ref.current);
-    chart.current = c;
-    const ro = new ResizeObserver(() => c.resize());
-    ro.observe(ref.current);
-    return () => { ro.disconnect(); c.dispose(); chart.current = null; };
-  }, []);
-  useEffect(() => { chart.current?.setOption(option, true); }, [option]);
-  return <div ref={ref} className={className} />;
+// ── EChart 封装(自动 resize + dispose;echarts 本体异步加载) ──
+const EChartReal = lazy(() => import('./echart'));
+export function EChart({ option, className = 'h-64' }: { option: ChartOption; className?: string }) {
+  // chunk 加载期间用与图表同尺寸的骨架占位,避免布局跳动
+  return (
+    <Suspense fallback={<div className={`skeleton ${className}`} />}>
+      <EChartReal option={option} className={className} />
+    </Suspense>
+  );
 }
 
-/** 柱状图垂直渐变填充(上亮下沉,大气感)。 */
+/** 柱状图垂直渐变填充(上亮下沉,大气感)。纯对象字面量,echarts 直接识别。 */
 export function vgrad(top: string, bottom: string) {
-  return new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-    { offset: 0, color: top },
-    { offset: 1, color: bottom },
-  ]);
+  return {
+    type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
+    colorStops: [
+      { offset: 0, color: top },
+      { offset: 1, color: bottom },
+    ],
+  };
 }
 
 // ECharts 基础配置:随当前主题生成(颜色取设计 token,图表与界面一致)

@@ -1,8 +1,8 @@
 // App Shell:左侧导航 + 顶栏运行状态(轮询 /overview,15s)。
 // H2:顶栏为窗口拖动区(macOS hiddenInset 无系统标题栏,Web 侧提供 drag);
 // 顶栏内的交互控件(主题切换)需显式 no-drag 才可点击。
-import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { NavLink, useLocation, useOutlet } from 'react-router-dom';
 import {
   Terminal, LayoutDashboard, ScrollText, BarChart3, Boxes, KeyRound, Settings,
 } from 'lucide-react';
@@ -42,6 +42,27 @@ function fmtUptime(sec: number): string {
   if (sec < 60) return `${sec}s`;
   if (sec < 86400) return `${Math.floor(sec / 3600)}h${Math.floor((sec % 3600) / 60)}m`;
   return `${Math.floor(sec / 86400)}d${Math.floor((sec % 86400) / 3600)}h`;
+}
+
+// 监控三页(总览/日志/用量)保活:切换导航只切 display,不卸载重挂载。
+// 这三页挂载成本高(重新拉数据 + ECharts 重建 + SSE 重连),来回切换时
+// 重建正是卡顿主因;保活后切换接近零成本,且日志页离开时仍实时接收。
+const KEEP_ALIVE_PATHS = ['/', '/logs', '/usage'];
+
+function KeepAliveOutlet() {
+  const location = useLocation();
+  const outlet = useOutlet();
+  const cache = useRef(new Map<string, React.ReactNode>());
+  const path = location.pathname;
+  if (KEEP_ALIVE_PATHS.includes(path)) cache.current.set(path, outlet);
+  return (
+    <>
+      {[...cache.current.entries()].map(([p, el]) => (
+        <div key={p} className={p === path ? undefined : 'hidden'}>{el}</div>
+      ))}
+      {!KEEP_ALIVE_PATHS.includes(path) && outlet}
+    </>
+  );
 }
 
 export function AppShell() {
@@ -148,7 +169,7 @@ export function AppShell() {
               <h1 className="text-xl font-extrabold tracking-tight text-txt">{meta.title}</h1>
               <p className="mt-0.5 text-[13px] text-txt2">{meta.desc}</p>
             </div>
-            <Outlet />
+            <KeepAliveOutlet />
           </div>
         </main>
       </div>

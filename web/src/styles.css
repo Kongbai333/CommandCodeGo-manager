@@ -57,12 +57,24 @@ html, body, #root { height: 100%; }
 html { color-scheme: light; }
 html[data-theme='dark'] { color-scheme: dark; }
 body {
-  background: linear-gradient(180deg, var(--color-bg) 0%, color-mix(in srgb, var(--color-bg) 88%, var(--color-brand2) 12%) 100%) fixed;
+  background-color: var(--color-bg);
   color: var(--color-txt);
   font-family: var(--font-sans);
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
   transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* 视口固定渐变背景:用 fixed 定位的伪元素(独立合成层)而非
+   background-attachment:fixed —— 后者在 Chromium 滚动/切页时
+   触发整屏重绘,是管理界面切页发卡的来源之一。 */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, var(--color-bg) 0%, color-mix(in srgb, var(--color-bg) 88%, var(--color-brand2) 12%) 100%);
 }
 
 /* 滚动条随主题 */

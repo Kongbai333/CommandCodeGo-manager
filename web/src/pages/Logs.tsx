@@ -1,5 +1,5 @@
 // 实时请求日志(Phase 3.2):历史查询 + SSE 实时追加(ticket 一次性票据,断线 1.5s 自动重连)。
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchClientKeys, fetchLogs, type ClientKey, type RequestRow } from '../api';
 import {
   Badge, Button, Card, CardBody, CardHeader, EmptyState, Loading, Select,
@@ -63,6 +63,55 @@ function KV({ label, value }: { label: string; value: React.ReactNode }) {
     </div>
   );
 }
+
+// 单行(含展开详情)独立 memo:SSE 新增一条 / 展开 / 收起时,
+// 只有变化的行重渲染,不再整表重建(表可达数百行,整表重渲是实时流的卡顿源)。
+const LogRow = memo(function LogRow({ r, expanded, onToggle }: {
+  r: RequestRow; expanded: boolean; onToggle: (id: number) => void;
+}) {
+  return (
+    <Fragment>
+      <tr onClick={() => onToggle(r.id)}
+        className={`cursor-pointer transition-colors hover:bg-panel2/60 ${expanded ? 'bg-panel2/80' : ''}`}>
+        <Td className="tnum whitespace-nowrap text-xs text-txt2">{fmtTime(r.ts)}</Td>
+        <Td className="max-w-44 truncate font-mono text-xs">{r.endpoint || '—'}</Td>
+        <Td className="max-w-32 truncate text-xs text-txt2">{r.proxy_key ?? '—'}</Td>
+        <Td className="max-w-36 truncate text-xs">{r.model ?? '—'}</Td>
+        <Td><Badge kind={statusKind(r.status_code)}>{r.status_code ?? '—'}</Badge></Td>
+        <Td className="text-xs text-txt2">{r.stream ? '是' : '否'}</Td>
+        <Td className="tnum text-xs">{fmtMs(r.duration_ms)}</Td>
+        <Td className="tnum text-xs">{fmtK(r.input_tokens)} / {fmtK(r.output_tokens)}</Td>
+        <Td className="max-w-24 truncate font-mono text-xs text-txt2">{r.finish_reason ?? '—'}</Td>
+        <Td className="max-w-32 truncate text-xs">{r.error_type
+          ? <span className="font-mono text-err">{r.error_type}</span> : <span className="text-txt3">—</span>}</Td>
+      </tr>
+      {expanded && (
+        <tr>
+          <td colSpan={10} className="border-b border-line/50 bg-panel2/50 px-4 py-3">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs md:grid-cols-3">
+              <KV label="id" value={String(r.id)} />
+              <KV label="完整时间" value={fmtTime(r.ts)} />
+              <KV label="端点" value={r.endpoint || '—'} />
+              <KV label="proxy_key" value={r.proxy_key ?? '—'} />
+              <KV label="upstream_key_id" value={r.upstream_key_id != null ? String(r.upstream_key_id) : '—'} />
+              <KV label="模型" value={r.model ?? '—'} />
+              <KV label="状态码" value={r.status_code != null ? String(r.status_code) : '—'} />
+              <KV label="流式" value={r.stream ? '是' : '否'} />
+              <KV label="耗时" value={fmtMs(r.duration_ms)} />
+              <KV label="input_tokens" value={fmtInt(r.input_tokens)} />
+              <KV label="output_tokens" value={fmtInt(r.output_tokens)} />
+              <KV label="cached_tokens" value={fmtInt(r.cached_tokens)} />
+              <KV label="finish_reason" value={r.finish_reason ?? '—'} />
+              <KV label="error_type" value={r.error_type
+                ? <span className="text-err">{r.error_type}</span> : '—'} />
+              <KV label="client_disconnected" value={r.client_disconnected ? '是' : '否'} />
+            </div>
+          </td>
+        </tr>
+      )}
+    </Fragment>
+  );
+});
 
 export function Logs() {
   // 过滤条件('' = 不过滤;2xx/4xx/5xx 为前端分组过滤,具体值走服务端)
@@ -177,6 +226,8 @@ export function Logs() {
   });
 
   const clearFilters = () => { setEndpoint(''); setStatus(''); setKeyId(''); };
+  // 行展开/收起(LogRow memo 的稳定回调,避免每次渲染生成新函数打散 memo)
+  const toggleRow = useCallback((id: number) => setExpandedId(prev => (prev === id ? null : id)), []);
 
   // 2xx/4xx/5xx 分组过滤在前端生效
   const visible = statusGroup
@@ -238,46 +289,7 @@ export function Logs() {
             </thead>
             <tbody>
               {visible.map(r => (
-                <Fragment key={r.id}>
-                  <tr onClick={() => setExpandedId(prev => (prev === r.id ? null : r.id))}
-                    className={`cursor-pointer transition-colors hover:bg-panel2/60 ${expandedId === r.id ? 'bg-panel2/80' : ''}`}>
-                    <Td className="tnum whitespace-nowrap text-xs text-txt2">{fmtTime(r.ts)}</Td>
-                    <Td className="max-w-44 truncate font-mono text-xs">{r.endpoint || '—'}</Td>
-                    <Td className="max-w-32 truncate text-xs text-txt2">{r.proxy_key ?? '—'}</Td>
-                    <Td className="max-w-36 truncate text-xs">{r.model ?? '—'}</Td>
-                    <Td><Badge kind={statusKind(r.status_code)}>{r.status_code ?? '—'}</Badge></Td>
-                    <Td className="text-xs text-txt2">{r.stream ? '是' : '否'}</Td>
-                    <Td className="tnum text-xs">{fmtMs(r.duration_ms)}</Td>
-                    <Td className="tnum text-xs">{fmtK(r.input_tokens)} / {fmtK(r.output_tokens)}</Td>
-                    <Td className="max-w-24 truncate font-mono text-xs text-txt2">{r.finish_reason ?? '—'}</Td>
-                    <Td className="max-w-32 truncate text-xs">{r.error_type
-                      ? <span className="font-mono text-err">{r.error_type}</span> : <span className="text-txt3">—</span>}</Td>
-                  </tr>
-                  {expandedId === r.id && (
-                    <tr>
-                      <td colSpan={10} className="border-b border-line/50 bg-panel2/50 px-4 py-3">
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs md:grid-cols-3">
-                          <KV label="id" value={String(r.id)} />
-                          <KV label="完整时间" value={fmtTime(r.ts)} />
-                          <KV label="端点" value={r.endpoint || '—'} />
-                          <KV label="proxy_key" value={r.proxy_key ?? '—'} />
-                          <KV label="upstream_key_id" value={r.upstream_key_id != null ? String(r.upstream_key_id) : '—'} />
-                          <KV label="模型" value={r.model ?? '—'} />
-                          <KV label="状态码" value={r.status_code != null ? String(r.status_code) : '—'} />
-                          <KV label="流式" value={r.stream ? '是' : '否'} />
-                          <KV label="耗时" value={fmtMs(r.duration_ms)} />
-                          <KV label="input_tokens" value={fmtInt(r.input_tokens)} />
-                          <KV label="output_tokens" value={fmtInt(r.output_tokens)} />
-                          <KV label="cached_tokens" value={fmtInt(r.cached_tokens)} />
-                          <KV label="finish_reason" value={r.finish_reason ?? '—'} />
-                          <KV label="error_type" value={r.error_type
-                            ? <span className="text-err">{r.error_type}</span> : '—'} />
-                          <KV label="client_disconnected" value={r.client_disconnected ? '是' : '否'} />
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
+                <LogRow key={r.id} r={r} expanded={expandedId === r.id} onToggle={toggleRow} />
               ))}
             </tbody>
           </Table>
