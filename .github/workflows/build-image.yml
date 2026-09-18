@@ -3,6 +3,7 @@ name: build-image
 # 触发方式：
 #   1) 手动 —— Actions 页面点 "Run workflow"，可填上游 ref（分支 / tag / SHA）
 #   2) 每周一 02:17 (UTC+8) 自动跑一次，跟随上游 main 的更新
+#      ⚠️ fork 仓库里 schedule 默认是关闭的，需要手动启用；不启用就只能手动跑
 #   3) 推送本仓库的 Dockerfile / workflow 时
 on:
   workflow_dispatch:
@@ -34,6 +35,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # GHCR 的镜像路径必须全小写，而 GitHub 用户名可以是混合大小写
+      # （Kongbai333 → 必须写成 kongbai333），所以统一在这里转一次。
+      - name: 解析镜像名（转小写）
+        id: img
+        run: |
+          BASE="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${IMAGE_NAME}"
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
+          echo "BASE=$BASE" >> "$GITHUB_ENV"
+          echo "镜像地址：$BASE"
+
       - name: 解析上游 ref
         id: ref
         run: |
@@ -60,8 +71,8 @@ jobs:
           context: .
           load: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.tag }}
+            ${{ steps.img.outputs.base }}:latest
+            ${{ steps.img.outputs.base }}:${{ steps.ref.outputs.tag }}
           build-args: |
             UPSTREAM_REPO=${{ env.UPSTREAM_REPO }}
             UPSTREAM_REF=${{ steps.ref.outputs.ref }}
@@ -70,23 +81,21 @@ jobs:
 
       - name: 打印镜像信息
         run: |
-          IMAGE="ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest"
           echo "上游 ref: ${{ steps.ref.outputs.ref }}"
-          docker image inspect "$IMAGE" --format '镜像大小: {{.Size}} bytes'
-          docker run --rm --entrypoint sh "$IMAGE" -c 'cat /app/UPSTREAM_SHA'
+          docker image inspect "$BASE:latest" --format '镜像大小: {{.Size}} bytes'
+          docker run --rm --entrypoint sh "$BASE:latest" -c 'cat /app/UPSTREAM_SHA'
 
       - name: 推送 GHCR
         run: |
-          docker push "ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest"
-          docker push "ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ steps.ref.outputs.tag }}"
+          docker push "$BASE:latest"
+          docker push "$BASE:${{ steps.ref.outputs.tag }}"
 
       # 国内直连 ghcr.io 通常很慢甚至不通，所以同时产出一份离线 tar.gz：
       # NAS 上 `docker load -i` 直接导入。
       - name: 导出离线镜像 tar.gz
         run: |
-          docker save "ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest" \
-            | gzip -9 > "${{ env.IMAGE_NAME }}-amd64.tar.gz"
-          ls -lh "${{ env.IMAGE_NAME }}-amd64.tar.gz"
+          docker save "$BASE:latest" | gzip -9 > "${IMAGE_NAME}-amd64.tar.gz"
+          ls -lh "${IMAGE_NAME}-amd64.tar.gz"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -102,4 +111,4 @@ jobs:
             || gh release create image-latest \
                  --title "Docker 离线镜像（滚动更新）" \
                  --notes "amd64 镜像 tar.gz。NAS 上：\`docker load -i ccgo-manager-amd64.tar.gz\`，然后用 compose 起容器。"
-          gh release upload image-latest "${{ env.IMAGE_NAME }}-amd64.tar.gz" --clobber
+          gh release upload image-latest "${IMAGE_NAME}-amd64.tar.gz" --clobber
