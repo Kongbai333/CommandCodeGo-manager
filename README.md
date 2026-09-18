@@ -1,66 +1,226 @@
-# ccgo-manager 镜像
+# CommandCodeGo-manager
 
-给 [learningdog1/CommandCodeGo-manager](https://github.com/learningdog1/CommandCodeGo-manager) 做的 Docker 打包壳。
+[![LinuxDo](https://img.shields.io/badge/LinuxDo-友链-0099FF?style=for-the-badge&logo=discourse&logoColor=white)](https://linux.do)
 
-上游本身没有 Dockerfile（只有桌面版 / 裸 Node / 单文件 bundle 三种部署方式），这个仓库只做一件事：
-**在 GitHub Actions 上把上游源码构建成镜像**，顺带导出一份离线 tar.gz 给 NAS 用。
+Command Code 订阅反向代理:把 [Command Code](https://commandcode.ai)(含 $1/月的 Go 套餐)的订阅额度反代为
+**OpenAI 兼容**(`/v1/chat/completions`、`/v1/responses`)与 **Anthropic 兼容**(`/v1/messages`)端点,
+供任意 harness(Claude Code / OpenCode / ZCode / cURL / 任意 OpenAI·Anthropic SDK)使用;
+自带美观的中文 Web 管理界面(仪表盘、实时日志、用量统计、模型列表、密钥管理、设备指纹、设置)。
+**提供 macOS / Windows 桌面版**(双击即用的原生应用,服务后台常驻 + 托盘)。
 
-## 用现成的
+协议层派生自 [MAXeaglet/commandcode-proxy](https://github.com/MAXeaglet/commandcode-proxy)(MIT,基线
+`9bdfafc`),wire 行为与其逐项对齐,并保持其测试套件全绿。详见 [NOTICE](./NOTICE)。
 
-| 方式 | 地址 |
-|---|---|
-| GHCR（需要能连 ghcr.io） | `ghcr.io/kongbai333/ccgo-manager:latest` |
-| 离线 tar.gz（国内推荐） | [Releases → image-latest](https://github.com/Kongbai333/ccgo-image/releases/tag/image-latest) |
+> ⚠️ **免责声明**:本项目为非官方逆向工程产物,与 Command Code / Langbase 无关联。使用逆向协议可能违反
+> Command Code 服务条款,账号风险由使用者自行承担,仅供学习与研究用途。
 
-NAS 上：
+![总览仪表盘](docs/screenshots/dashboard.png)
+
+## 特性
+
+- OpenAI Chat Completions + Responses + Anthropic Messages 三端点,流式(SSE)与非流式
+- 工具调用、多模态图片输入、`reasoning_effort`、缓存命中计量、thinking 签名伪装
+- 每个 key 确定性设备指纹(同 key 恒定同设备),对齐官方 CLI 1.53.1 的流量形态;管理界面「设备指纹」页可视化查验伪造形态与上报结果
+- 零输出 / 连续超时响应转 429,让下游 SDK 自动重试;客户端断连时真实中止上游
+- 客户端密钥体系:`sk-ccp-*` 密钥(哈希存储、显式绑定上游 key、可吊销);也支持 `user_*` 直通
+- Web 管理界面:admin token 鉴权、实时请求日志(SSE)、用量聚合、密钥管理、协议漂移告警
+- SQLite 持久化(内置 `node:sqlite`,零原生依赖):请求日志 30 天可配,用量按天×key×模型聚合
+- 零运行时依赖(Node ≥ 22.5);桌面应用与 esbuild 单文件分发
+
+## 管理界面一览
+
+| 请求日志(实时 SSE 推送,按端点 / 状态 / 密钥过滤) | 用量统计(按天 / 模型 / 密钥) |
+|:---:|:---:|
+| <img src="docs/screenshots/logs.png" width="430" alt="请求日志"> | <img src="docs/screenshots/usage.png" width="430" alt="用量统计"> |
+
+| 模型列表(上游动态拉取,内置列表兜底) | 设置(端口、协议开关、日志留存) |
+|:---:|:---:|
+| <img src="docs/screenshots/models.png" width="430" alt="模型列表"> | <img src="docs/screenshots/settings.png" width="430" alt="设置"> |
+
+## 设备指纹(可视化查验)
+
+代理不会把宿主机的真实信息(平台、Node 版本、工作目录)透给上游,而是为**每个上游密钥确定性伪造一台
+Windows 设备身份**——CPU / 内存 / 时区 / MAC / MachineGuid / 主机名 / git 邮箱,哈希算法与官方 CLI
+逐字对齐(同盐 `command-code:device-fingerprint:v1`)。同一密钥无论重启、多实例、停用数周后恢复,
+上游看到的始终是同一台设备;「换设备」本身就是可疑信号,所以指纹由 key 派生而非随机。
+
+管理界面「设备指纹」页把这一切摊开给你看:统一设备档案、每个 key 伪造出的具体形态、thumbmark
+与各信号哈希、指纹 / 生命周期事件的上报时间与结果、下次刷新时间——是不是真做了,打开页面即可验证。
+
+![设备指纹](docs/screenshots/fingerprint.png)
+
+指纹状态为运行时数据,进程重启后按需重建;页面仅显示启动后使用过的密钥,key 只展示前 8 位前缀。
+如需成批更换全部伪造身份(不换真实 key),配置环境变量 `CC_FINGERPRINT_SALT` 即可。
+
+## 快速开始
+
+### 方式〇:桌面版(macOS / Windows,推荐)
+
+从 `release/` 目录(或 GitHub Releases / Actions 产物)取安装包:
+
+| 平台 | 文件 | 说明 |
+|---|---|---|
+| macOS Apple Silicon | `CommandCodeGo Manager-<v>-arm64.dmg` | M 系列芯片 |
+| macOS Intel | `CommandCodeGo Manager-<v>.dmg` | — |
+| Windows x64 | `CommandCodeGo Manager-Setup-<v>-x64.exe` | 安装版(NSIS) |
+| Windows x64 | `CommandCodeGo Manager-Portable-<v>-x64.exe` | 免安装便携版 |
+| Windows 通用 | `CommandCodeGo Manager-Setup-<v>.exe` | 双架构合并安装器 |
+
+- 首次启动自动生成管理密钥(admin token):弹窗提示,并保存到
+  `~/Library/Application Support/CommandCodeGo Manager/admin-token.txt`(mac)或
+  `%APPDATA%\CommandCodeGo Manager\admin-token.txt`(win),用它在窗口里登录。
+- 关闭窗口后服务在**后台继续运行**(托盘图标常驻,默认 `http://127.0.0.1:3050`);
+  从托盘菜单「退出」才真正结束。端口被占用时自动向后尝试。
+- 桌面版未做代码签名:macOS 从网络下载的安装包**首次打开会被 Gatekeeper 误报「已损坏」**
+  (未签名应用 + 浏览器下载的隔离标记所致,文件本身完好;右键→打开对此无效)。
+  应用拖入「应用程序」后在终端执行一次:
+  ```bash
+  xattr -cr "/Applications/CommandCodeGo Manager.app"
+  ```
+  再正常打开即可。Windows SmartScreen 可能提示「仍要运行」。
+
+本地自行构建桌面版:
 
 ```bash
-docker load -i ccgo-manager-amd64.tar.gz
-docker compose up -d          # 用本仓库的 compose.yaml
+npm --prefix web install && npm run build:web   # 1) Web UI → public/
+npm install && npm run bundle                    # 2) 服务端 → dist/commandcodego-manager.mjs
+cd desktop && npm install
+npm run dist:mac   # macOS dmg(zip 同步产出,arm64 + x64)
+npm run dist:win   # Windows nsis + portable(x64 + arm64;CI 上原生构建更稳)
+npm run smoke      # 无窗口冒烟:拉起服务并探活(开发验证用)
 ```
 
-然后打开 `http://<NAS 的 IP>:3050/`。
-
-> GHCR 上的包首次推送后默认是 **private**，要在别的机器上匿名 `docker pull`，
-> 需要去 GitHub 的 Packages 页面把它改成 public（Package settings → Change visibility）。
-
-## 自己构建
+### 方式一:裸 Node(要求 Node ≥ 22.5)
 
 ```bash
-docker build -t ccgo-manager:latest .
-# 指定上游版本
-docker build --build-arg UPSTREAM_REF=v0.1.3 -t ccgo-manager:v0.1.3 .
+node server.mjs            # 首启会在 data/config.json 落默认配置,并在控制台打印管理界面 token
+# 打开 http://127.0.0.1:3050/ 进入管理界面
 ```
 
-## 更新
+Web 界面需要构建一次(之后 `public/` 会被服务进程托管):
 
-上游更新后，在 Actions 页面点一次 `build-image` → `Run workflow` 即可（也可以等每周一的定时任务）。
-想跟某个具体版本，`upstream_ref` 填 tag 或 commit SHA。
+```bash
+cd web && npm install && cd ..
+npm run build:web
+```
 
-## 镜像里做了什么
+### 方式二:单文件 bundle
 
-- 多阶段构建：阶段 1 拉上游源码 + `npm run build:web` 产出 `public/`；阶段 2 只保留
-  `server.mjs` / `src/` / `public/` / `package.json`，约 250MB（node:22-slim 打底）。
-- 上游零运行时依赖（存储用内置 `node:sqlite`），所以最终镜像里没有 `node_modules`。
-- `HOST=0.0.0.0`：上游默认监听 `127.0.0.1`，不改的话容器外连不上。
-- `CCP_DATA_DIR=/data` + `VOLUME /data`：`config.json` 与 `ccp.db` 都在这里。
-- 上游 commit SHA 写进镜像的 `/app/UPSTREAM_SHA`，方便对账。
+```bash
+npm install                # 安装 esbuild(devDependency)
+npm run bundle             # 产出 dist/commandcodego-manager.mjs + dist/public/
+node dist/commandcodego-manager.mjs   # data/ 与 public/ 取脚本同级目录
+```
 
-## 两个必须知道的事
+### 开发模式
 
-1. **管理界面没有登录鉴权。** 上游的设计是「只监听 127.0.0.1」当作唯一防线，README 里也写着
-   「管理界面无需登录」。容器化之后这个前提就没了，所以**不要把这个端口映射到公网**。
-   要在公网用，请自己在前面套一层带鉴权的反代。
-2. **内存。** 上游默认 `CC_MAX_BODY_MB=100`，实测单个请求最坏可吃 ~550MB。
-   多人/公网部署请同时下调 `CC_MAX_BODY_MB` 和 `CC_MAX_INFLIGHT`。
+```bash
+node server.mjs            # 后端 :3050
+cd web && npm run dev       # 前端 :5173,/admin/api 与 /v1 代理到 3050
+npm test                   # 92 个测试(mock 上游,无需真实 key)
+```
 
-## 已知问题（上游，与本仓库无关）
+## 接入 harness
 
-- 在 **Windows** 上跑裸 Node 时，Web 界面会整站 404：`src/static.mjs` 用
-  `normalize()` 处理路径后与含正斜杠的 `PUBLIC_DIR` 做 `startsWith` 比较，Windows 下
-  `normalize` 会把分隔符转成 `\`，判断恒为 false。Linux/macOS（含本镜像）不受影响。
-- README 里 `adminTokenHash` 的描述与实际行为不一致（代码注释标它「已废弃」，文档表格仍写「首启生成」）。
+上游密钥(`user_*`)的两种来路:
+
+1. **已安装 commandcode 命令行并登录过**(Go 订阅用户的推荐路径):打开管理界面「密钥管理」,
+   软件会自动检测本机 CLI 登录(`~/.commandcode/auth.json`),点「一键导入」即可——
+   Go 套餐没有 Provider API 权限,但 CLI 使用的 `user_*` 密钥在代理所走的
+   `/alpha/generate` 端点上完全可用,这正是本软件能把 Go 订阅反代出来的原因。
+2. **多账户**:在 commandcode CLI 里 `cmd login` 切换另一账号后再点「一键导入」,
+   或在网页后台(commandcode.ai Studio → API keys)生成新密钥手动添加——每枚密钥独立计入。
+
+**额度耗尽自动轮转**:客户端密钥优先使用绑定的上游密钥;当上游明确返回「额度用尽」(402)时,
+自动切换到其他启用中的上游密钥并当场重试,被耗尽的密钥标记为「额度耗尽」(月度额度重置后可手动
+重新启用)。瞬时限速(429)不触发轮转,每枚密钥保持独立设备指纹与会话。
+
+![密钥管理](docs/screenshots/keys.png)
+*密钥管理:上游账户一键导入、客户端密钥显式绑定;额度耗尽的账户自动标记,重置后可手动重新启用*
+
+管理界面无需登录(仅监听 127.0.0.1,服务端拒绝跨站修改请求)。
+拿到上游密钥后,创建客户端密钥 `sk-ccp-*` 给 harness 使用(或直接使用 `user_*` 直通模式)。
+
+### cURL
+
+```bash
+curl http://127.0.0.1:3050/v1/chat/completions \
+  -H 'Authorization: Bearer sk-ccp-xxxx' -H 'Content-Type: application/json' \
+  -d '{"model":"deepseek/deepseek-v4-flash","messages":[{"role":"user","content":"你好"}]}'
+```
+
+### OpenAI SDK / 任意 OpenAI 兼容客户端
+
+```python
+from openai import OpenAI
+client = OpenAI(base_url="http://127.0.0.1:3050/v1", api_key="sk-ccp-xxxx")
+```
+
+### Claude Code(Anthropic 协议)
+
+```bash
+export ANTHROPIC_BASE_URL=http://127.0.0.1:3050
+export ANTHROPIC_AUTH_TOKEN=sk-ccp-xxxx
+claude
+```
+
+### ZCode / OpenCode 等
+
+任何支持自定义 OpenAI 或 Anthropic 端点的 harness,把 base URL 指向 `http://127.0.0.1:3050`,
+key 填 `sk-ccp-*` 客户端密钥(或上游 `user_*`,直通模式默认开启)。
+
+## 配置
+
+配置文件 `data/config.json`(首启自动生成;环境变量优先级更高)。
+
+| 键 | 默认 | 说明 |
+|---|---|---|
+| `port` | `3050` | 监听端口(env `PORT`) |
+| `host` | `127.0.0.1` | 监听地址(env `HOST`) |
+| `apiBase` | `https://api.commandcode.ai` | 上游地址(env `CC_API_BASE`) |
+| `projectSlug` | `cc-proxy` | x-project-slug(env `PROJECT_SLUG`) |
+| `apiKey` | 空 | 上游 key 兜底:请求不带凭据时使用(env 无,仅配置) |
+| `logFile` / `logLevel` | 空 / `info` | 日志文件与级别(env `LOG_FILE`) |
+| `useProviderModels` | `true` | 动态拉取模型列表(env `CC_USE_PROVIDER_MODELS`) |
+| `modelRefreshIntervalMs` | `300000` | 模型列表缓存时长 |
+| `zdr` | `false` | 附加 `x-cmd-zdr: 1` 头走 ZDR 通道(env `CMD_ZDR=1`) |
+| `cliMode` / `cliSessionMode` | `agent` / `interactive` | 信封与 lifecycle 枚举(env `CC_CLI_MODE` / `CC_CLI_SESSION_MODE`) |
+| `fingerprintSalt` | 空 | 成批更换设备指纹的逃生口(env `CC_FINGERPRINT_SALT`) |
+| `deviceProjectDir` | 内置 Windows 路径 | 伪造项目目录(env `CC_DEVICE_PROJECT_DIR`) |
+| `emptySystemPlaceholder` | `true` | 无 system 时发空格占位,阻止上游注入 7.5K 默认提示词 |
+| `adminTokenHash` | 首启生成 | Web 管理界面 token 的 sha256(明文只在首启打印一次) |
+| `allowDirectUpstreamKey` | `true` | `user_*` 直通开关;关闭后只认客户端密钥 |
+| `logRetentionDays` | `30` | 请求日志保留天数 |
+
+### 运行时旋钮(仅环境变量)
+
+| 变量 | 默认 | 说明 |
+|---|---|---|
+| `CCP_DATA_DIR` | 脚本同级 `data/` | 数据目录(SQLite 库、配置) |
+| `CC_MAX_BODY_MB` | `100` | 请求体上限(MB) |
+| `CC_MAX_INFLIGHT` | `0`(不限) | 在途请求数上限,超限 503 + Retry-After |
+| `CC_STREAM_IDLE_MS` | `30000` | 流式读空闲超时 |
+| `CC_NONSTREAM_IDLE_MS` | `90000` | 非流式读空闲超时 |
+| `CC_CLIENT_DRAIN_TIMEOUT_MS` | `0`(关) | 客户端不读响应时的排空超时 |
+| `CC_KEEPALIVE_TIMEOUT_MS` | `65000` | keep-alive(反代侧须小于它) |
+
+## 安全须知
+
+- **上游 key 明文存储**:调用上游必需,`data/` 目录请保持权限私有(600/700),不要提交到任何仓库。
+- **管理界面默认只听 `127.0.0.1`**:本机使用。若需暴露公网,请自行置于反向代理之后并加 TLS 与访问控制。
+- **客户端密钥(`sk-ccp-*`)只存哈希**;admin token 只存哈希,明文仅首启打印一次(忘记可在设置页轮换,或删掉 `data/config.json` 里的 `adminTokenHash` 重启重新生成)。
+- **日志与界面不落消息正文**,密钥一律掩码显示。
+
+## 内存与部署(公网必读)
+
+请求体在转发前存在多份副本(实测峰值 ≈ body × 5.1~7.4):默认 100MB 上限意味着**单个请求最坏可吃 ~550MB**。
+公网/多用户部署请:
+
+1. 反代层限制 body 大小(nginx:`client_max_body_size`);
+2. 限制在途请求数(nginx:`limit_conn`,或 `CC_MAX_INFLIGHT`);
+3. 反代 `keepalive_timeout` 设为 60s 以内(小于本服务的 65s)。
 
 ## 许可
 
-上游是 MIT，本仓库只是构建脚本。协议层派生自 MAXeaglet/commandcode-proxy，详见上游 `NOTICE`。
+MIT(本项目)。协议层派生自 [MAXeaglet/commandcode-proxy](https://github.com/MAXeaglet/commandcode-proxy)(MIT),
+vendored 基线 `9bdfafc`,详见 [NOTICE](./NOTICE) 与 [LICENSE](./LICENSE)。
