@@ -1,0 +1,50 @@
+# CommandCodeGo-manager —— Docker Compose（NAS / 服务器）
+#
+# 用法：
+#   1) docker compose up -d
+#   2) 打开 http://<NAS 的 IP>:3050/  进入管理界面
+#   3) 在「密钥管理」里导入上游密钥（Go 套餐用 CLI 一键导入 / 或手动添加 user_* key），
+#      再创建客户端密钥 sk-ccp-* 给 Claude Code 等 harness 用
+#
+# 用离线 tar 包时：先 docker load -i ccgo-manager-amd64.tar.gz，再 docker compose up -d
+
+services:
+  ccgo-manager:
+    image: ghcr.io/kongbai333/ccgo-manager:latest
+    container_name: ccgo-manager
+    restart: unless-stopped
+
+    # NAS 上宿主机目录通常归 root 所有，容器内默认的 node 用户(uid 1000)写不进去 ——
+    # 那样 SQLite 会静默降级到内存模式，密钥不落盘。所以这里用 root 跑。
+    # 如果你已经把 ./data 的属主改成了 1000:1000（chown -R 1000:1000 ./data），
+    # 就可以删掉这一行。
+    user: "0:0"
+
+    ports:
+      # 左边是 NAS 上的端口，按需改。⚠️ 别把这个端口映射到公网：
+      # 管理界面没有登录鉴权，唯一防线就是「只在内网访问」。
+      - "3050:3050"
+
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3050"
+      CCP_DATA_DIR: /data
+      TZ: Asia/Shanghai
+      # 公网/多人使用时建议打开下面两项（默认 100MB 单请求最坏可吃 ~550MB 内存）
+      # CC_MAX_BODY_MB: "32"
+      # CC_MAX_INFLIGHT: "8"
+
+    volumes:
+      # config.json 与 ccp.db 都落在这里，备份直接拷这个目录
+      - ./data:/data
+
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3050/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
