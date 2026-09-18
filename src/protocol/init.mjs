@@ -30,10 +30,14 @@ async function ensureInitialized(apiKey, signal) {
         method: 'POST', headers, signal,
         body: JSON.stringify(fingerprint),
       }).then(r => {
+        state.fingerprintReport = { ts: Date.now(), ok: r.ok, ...(r.ok ? {} : { status: r.status }) };
         if (!r.ok) log('warn', 'Fingerprint record failed', { status: r.status });
         else log('info', 'Fingerprint recorded');
       }).catch(e => {
-        if (e.name !== 'AbortError') log('warn', 'Fingerprint record error', { error: e.message });
+        if (e.name !== 'AbortError') {
+          state.fingerprintReport = { ts: Date.now(), ok: false, error: e.message };
+          log('warn', 'Fingerprint record error', { error: e.message });
+        }
       }),
 
       fetch(`${CFG.apiBase}/alpha/lifecycle-events`, {
@@ -48,10 +52,14 @@ async function ensureInitialized(apiKey, signal) {
           },
         }),
       }).then(r => {
+        state.lifecycleReport = { ts: Date.now(), ok: r.ok, ...(r.ok ? {} : { status: r.status }) };
         if (!r.ok) log('warn', 'Lifecycle event failed', { status: r.status });
         else log('info', 'Lifecycle event sent');
       }).catch(e => {
-        if (e.name !== 'AbortError') log('warn', 'Lifecycle event error', { error: e.message });
+        if (e.name !== 'AbortError') {
+          state.lifecycleReport = { ts: Date.now(), ok: false, error: e.message };
+          log('warn', 'Lifecycle event error', { error: e.message });
+        }
       }),
     ]);
 

@@ -20,6 +20,8 @@ import { detectCliAuth } from '../cli-auth.mjs';
 import { listRequests, summarizeSince } from '../store/requests.mjs';
 import { usageSummary } from '../store/usage.mjs';
 import { driftStatus } from '../protocol/upstream.mjs';
+import { keyStateStore } from '../protocol/keystate.mjs';
+import { DEVICE_PROFILE, slugifyProjectPath } from '../protocol/fingerprint.mjs';
 import { MODELS } from '../protocol/models.mjs';
 
 const sha256 = (s) => createHash('sha256').update(s).digest('hex');
@@ -111,6 +113,44 @@ export function createAdminApi({ getInflight = () => 0 } = {}) {
         groupBy: url.searchParams.get('groupBy') ?? 'day',
       });
       return end(res, 200, { rows });
+    }
+
+    // ── 设备指纹(只读:证明「模拟了什么、上报结果如何」) ──
+    // 指纹状态是运行时内存数据:进程重启后重建,且只含启动后用过的上游 key
+    //(与 12h 会话过期清理联动,见 session.mjs)。key 只回前 8 位,与日志口径一致。
+    if (req.method === 'GET' && path === '/fingerprints') {
+      const keys = [...keyStateStore.entries()].map(([apiKey, state]) => {
+        const c = state.fingerprint?.components ?? {};
+        return {
+          keyPrefix: apiKey.slice(0, 8),
+          createdAt: state.createdAt ?? null,
+          thumbmark: state.fingerprint?.thumbmark ?? null,
+          machineIdHash: c.machineIdHash ?? null,
+          macCount: Array.isArray(c.macHashes) ? c.macHashes.length : 0,
+          osUserHash: c.osUserHash ?? null,
+          hostnameHash: c.hostnameHash ?? null,
+          gitEmailHash: c.gitEmailHash ?? null,
+          cpuModel: c.cpuModel ?? null,
+          cpuCount: c.cpuCount ?? null,
+          memGiB: c.memGiB ?? null,
+          timezone: c.timezone ?? null,
+          nextInitAt: state.nextInitAt || null,
+          fingerprintReport: state.fingerprintReport ?? null,
+          lifecycleReport: state.lifecycleReport ?? null,
+        };
+      });
+      return end(res, 200, {
+        profile: {
+          platform: DEVICE_PROFILE.platform,
+          arch: DEVICE_PROFILE.arch,
+          osRelease: DEVICE_PROFILE.osRelease,
+          projectDir: DEVICE_PROFILE.projectDir,
+          projectSlug: slugifyProjectPath(DEVICE_PROFILE.projectDir),
+          fingerprintSalt: !!CFG.fingerprintSalt,
+          refreshEvery: '8h + 2h 抖动',
+        },
+        keys,
+      });
     }
 
     // ── 模型一键刷新(遍历启用的上游密钥试探动态列表) ──

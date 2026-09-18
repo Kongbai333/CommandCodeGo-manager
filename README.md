@@ -5,7 +5,7 @@
 Command Code 订阅反向代理:把 [Command Code](https://commandcode.ai)(含 $1/月的 Go 套餐)的订阅额度反代为
 **OpenAI 兼容**(`/v1/chat/completions`、`/v1/responses`)与 **Anthropic 兼容**(`/v1/messages`)端点,
 供任意 harness(Claude Code / OpenCode / ZCode / cURL / 任意 OpenAI·Anthropic SDK)使用;
-自带美观的中文 Web 管理界面(仪表盘、实时日志、用量统计、模型列表、密钥管理、设置)。
+自带美观的中文 Web 管理界面(仪表盘、实时日志、用量统计、模型列表、密钥管理、设备指纹、设置)。
 **提供 macOS / Windows 桌面版**(双击即用的原生应用,服务后台常驻 + 托盘)。
 
 协议层派生自 [MAXeaglet/commandcode-proxy](https://github.com/MAXeaglet/commandcode-proxy)(MIT,基线
@@ -20,7 +20,7 @@ Command Code 订阅反向代理:把 [Command Code](https://commandcode.ai)(含 $
 
 - OpenAI Chat Completions + Responses + Anthropic Messages 三端点,流式(SSE)与非流式
 - 工具调用、多模态图片输入、`reasoning_effort`、缓存命中计量、thinking 签名伪装
-- 每个 key 确定性设备指纹(同 key 恒定同设备),对齐官方 CLI 1.53.1 的流量形态
+- 每个 key 确定性设备指纹(同 key 恒定同设备),对齐官方 CLI 1.53.1 的流量形态;管理界面「设备指纹」页可视化查验伪造形态与上报结果
 - 零输出 / 连续超时响应转 429,让下游 SDK 自动重试;客户端断连时真实中止上游
 - 客户端密钥体系:`sk-ccp-*` 密钥(哈希存储、显式绑定上游 key、可吊销);也支持 `user_*` 直通
 - Web 管理界面:admin token 鉴权、实时请求日志(SSE)、用量聚合、密钥管理、协议漂移告警
@@ -36,6 +36,21 @@ Command Code 订阅反向代理:把 [Command Code](https://commandcode.ai)(含 $
 | 模型列表(上游动态拉取,内置列表兜底) | 设置(端口、协议开关、日志留存) |
 |:---:|:---:|
 | <img src="docs/screenshots/models.png" width="430" alt="模型列表"> | <img src="docs/screenshots/settings.png" width="430" alt="设置"> |
+
+## 设备指纹(可视化查验)
+
+代理不会把宿主机的真实信息(平台、Node 版本、工作目录)透给上游,而是为**每个上游密钥确定性伪造一台
+Windows 设备身份**——CPU / 内存 / 时区 / MAC / MachineGuid / 主机名 / git 邮箱,哈希算法与官方 CLI
+逐字对齐(同盐 `command-code:device-fingerprint:v1`)。同一密钥无论重启、多实例、停用数周后恢复,
+上游看到的始终是同一台设备;「换设备」本身就是可疑信号,所以指纹由 key 派生而非随机。
+
+管理界面「设备指纹」页把这一切摊开给你看:统一设备档案、每个 key 伪造出的具体形态、thumbmark
+与各信号哈希、指纹 / 生命周期事件的上报时间与结果、下次刷新时间——是不是真做了,打开页面即可验证。
+
+![设备指纹](docs/screenshots/fingerprint.png)
+
+指纹状态为运行时数据,进程重启后按需重建;页面仅显示启动后使用过的密钥,key 只展示前 8 位前缀。
+如需成批更换全部伪造身份(不换真实 key),配置环境变量 `CC_FINGERPRINT_SALT` 即可。
 
 ## 快速开始
 

@@ -79,6 +79,37 @@ export interface ModelItem {
   plan?: 'go' | 'pro' | 'goat' | 'max' | 'team' | null;
 }
 
+export interface FingerprintReport {
+  ts: number; ok: boolean; status?: number; error?: string;
+}
+
+export interface FingerprintKeyRow {
+  keyPrefix: string;
+  createdAt: number | null;
+  thumbmark: string | null;
+  machineIdHash: string | null;
+  macCount: number;
+  osUserHash: string | null;
+  hostnameHash: string | null;
+  gitEmailHash: string | null;
+  cpuModel: string | null;
+  cpuCount: number | null;
+  memGiB: number | null;
+  timezone: string | null;
+  nextInitAt: number | null;
+  fingerprintReport: FingerprintReport | null;
+  lifecycleReport: FingerprintReport | null;
+}
+
+export interface FingerprintsInfo {
+  profile: {
+    platform: string; arch: string; osRelease: string;
+    projectDir: string; projectSlug: string;
+    fingerprintSalt: boolean; refreshEvery: string;
+  };
+  keys: FingerprintKeyRow[];
+}
+
 export const fetchOverview = () => api<Overview>('/admin/api/overview');
 export const fetchLogs = (qs = '') => api<{ rows: RequestRow[]; total: number }>(`/admin/api/logs${qs}`);
 export const fetchUsage = (qs = '') => api<{ rows: UsageRow[] }>(`/admin/api/usage${qs}`);
@@ -89,3 +120,4 @@ export const putSettings = (patch: Partial<Settings>) =>
   api<{ ok: boolean }>('/admin/api/settings', { method: 'PUT', body: patch });
 export const refreshModels = () =>
   api<{ source: 'upstream' | 'builtin'; count: number; reason?: string }>('/admin/api/models/refresh', { method: 'POST' });
+export const fetchFingerprints = () => api<FingerprintsInfo>('/admin/api/fingerprints');

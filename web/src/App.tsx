@@ -10,6 +10,7 @@ const Logs = lazy(() => import('./pages/Logs').then(m => ({ default: m.Logs })))
 const Usage = lazy(() => import('./pages/Usage').then(m => ({ default: m.Usage })));
 const Models = lazy(() => import('./pages/Models').then(m => ({ default: m.Models })));
 const Keys = lazy(() => import('./pages/Keys').then(m => ({ default: m.Keys })));
+const Fingerprint = lazy(() => import('./pages/Fingerprint').then(m => ({ default: m.Fingerprint })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 
 export function App() {
@@ -22,6 +23,7 @@ export function App() {
           <Route path="/usage" element={<Suspense fallback={<Loading />}><Usage /></Suspense>} />
           <Route path="/models" element={<Suspense fallback={<Loading />}><Models /></Suspense>} />
           <Route path="/keys" element={<Suspense fallback={<Loading />}><Keys /></Suspense>} />
+          <Route path="/fingerprints" element={<Suspense fallback={<Loading />}><Fingerprint /></Suspense>} />
           <Route path="/settings" element={<Suspense fallback={<Loading />}><Settings /></Suspense>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

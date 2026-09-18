@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useOutlet } from 'react-router-dom';
 import {
-  Terminal, LayoutDashboard, ScrollText, BarChart3, Boxes, KeyRound, Settings,
+  Terminal, LayoutDashboard, ScrollText, BarChart3, Boxes, KeyRound, Fingerprint, Settings,
 } from 'lucide-react';
 import { fetchOverview, type Overview } from '../api';
 import { ThemeToggle, toast } from '../ui';
@@ -23,6 +23,7 @@ const NAV_GROUPS: { title: string; items: { to: string; label: string; icon: typ
     items: [
       { to: '/models', label: '模型', icon: Boxes, end: false },
       { to: '/keys', label: '密钥管理', icon: KeyRound, end: false },
+      { to: '/fingerprints', label: '设备指纹', icon: Fingerprint, end: false },
       { to: '/settings', label: '设置', icon: Settings, end: false },
     ],
   },
@@ -35,6 +36,7 @@ const PAGE_META: { match: string; title: string; desc: string }[] = [
   { match: '/usage', title: '用量统计', desc: '按天 / 模型 / 密钥的 token 消耗' },
   { match: '/models', title: '模型', desc: '可用模型目录与套餐标注' },
   { match: '/keys', title: '密钥管理', desc: '上游订阅账户与客户端接入密钥' },
+  { match: '/fingerprints', title: '设备指纹', desc: '每个上游密钥伪造的设备身份与上报状态' },
   { match: '/settings', title: '设置', desc: '服务与运行参数' },
 ];
 

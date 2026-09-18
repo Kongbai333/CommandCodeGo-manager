@@ -5,8 +5,10 @@ import { generateFingerprint } from './fingerprint.mjs';
 import { log } from '../log.mjs';
 
 // ── 每 Key 独立状态（fingerprint + 初始化节流） ──
-// 每个 API Key 拥有自己的设备指纹和初始化定时器
-export const keyStateStore = new Map(); // apiKey → { fingerprint, nextInitAt }
+// 每个 API Key 拥有自己的设备指纹和初始化定时器。
+// fingerprintReport / lifecycleReport 记最近一次上报结果(供管理界面「设备指纹」页展示),
+// createdAt 为该指纹(重)生成时间。
+export const keyStateStore = new Map(); // apiKey → { fingerprint, nextInitAt, createdAt, fingerprintReport, lifecycleReport }
 
 export function getOrCreateKeyState(apiKey) {
   let state = keyStateStore.get(apiKey);
@@ -14,6 +16,9 @@ export function getOrCreateKeyState(apiKey) {
     state = {
       fingerprint: generateFingerprint(apiKey),
       nextInitAt: 0,
+      createdAt: Date.now(),
+      fingerprintReport: null,   // { ts, ok, status?, error? }
+      lifecycleReport: null,
     };
     keyStateStore.set(apiKey, state);
     log('info', 'Fingerprint generated for key', { keyPrefix: apiKey.slice(0, 8) });
